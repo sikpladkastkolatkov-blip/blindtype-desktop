@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;">
+  <title>BlindType — тренажёр слепой печати</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="titlebar">
+      <div class="brand"><span class="brand-mark">B</span><span>BlindType</span><span class="brand-caption">ТРЕНАЖЁР ПЕЧАТИ</span></div>
+      <div class="window-actions">
+        <button class="window-btn" id="minimizeBtn" aria-label="Свернуть">—</button>
+        <button class="window-btn" id="maximizeBtn" aria-label="Развернуть">□</button>
+        <button class="window-btn close-btn" id="closeBtn" aria-label="Закрыть">×</button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="topline">
+        <div>
+          <p class="eyebrow">ПЕЧАТАЙ, НЕ СМОТРЯ НА КЛАВИАТУРУ</p>
+          <h1>Тренировка слепой печати</h1>
+          <p class="subtitle">Спокойный темп. Правильные пальцы. Больше точности.</p>
+        </div>
+        <div class="top-actions">
+          <label class="theme-switch"><span>Тема</span><select id="themeSelect" aria-label="Выбрать тему"><option value="dark">Тёмная</option><option value="light">Светлая</option></select></label>
+          <button id="restartBtn" class="secondary-btn">↻ <span>Начать заново</span></button>
+        </div>
+      </section>
+
+      <section class="stats" aria-label="Статистика тренировки">
+        <article class="stat-card"><span class="stat-label">СКОРОСТЬ</span><strong id="speedStat">0</strong><small>симв./мин</small></article>
+        <article class="stat-card"><span class="stat-label">ТОЧНОСТЬ</span><strong id="accuracyStat">100%</strong><small>точность набора</small></article>
+        <article class="stat-card"><span class="stat-label">ОШИБКИ</span><strong id="errorsStat">0</strong><small>неверных символов</small></article>
+        <article class="stat-card"><span class="stat-label">ВРЕМЯ</span><strong id="timeStat">00:00</strong><small>время тренировки</small></article>
+      </section>
+
+      <section class="practice-card">
+        <div class="practice-heading"><div><span class="section-kicker">УПРАЖНЕНИЕ</span><h2 id="modeTitle">Случайный текст</h2></div><div class="progress-label"><span id="progressText">0%</span><div class="progress-track"><div id="progressBar"></div></div></div></div>
+        <div id="promptText" class="prompt-text" aria-label="Текст для набора"></div>
+        <label class="input-label" for="typingInput">ТВОЙ НАБОР</label>
+        <textarea id="typingInput" rows="2" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="Начни печатать здесь…"></textarea>
+        <div class="practice-footer"><span id="hintText">Нажми любую клавишу, чтобы начать тренировку</span><span class="key-hint">ESC — начать заново</span></div>
+      </section>
+
+      <section class="keyboard-section">
+        <div class="keyboard-heading"><div><span class="section-kicker">ВИРТУАЛЬНАЯ КЛАВИАТУРА</span><span class="keyboard-note">Русская раскладка · ЙЦУКЕН</span></div><span class="finger-legend"><i></i> Подсказка следующей клавиши</span></div>
+        <div class="keyboard-stage">
+          <svg class="hands-art" viewBox="0 0 900 260" role="img" aria-label="Полупрозрачные силуэты рук для правильной постановки пальцев">
+            <g fill="currentColor" opacity=".23">
+              <path d="M75 224c-12-20-9-43 1-64l28-61c5-11 17-15 26-9 8 5 10 14 6 23l-17 42 39-92c5-12 18-16 28-9 9 6 11 17 6 27l-34 83 48-97c6-12 19-15 29-8 9 6 10 18 5 28l-43 92 44-72c7-11 20-12 29-5 8 7 8 18 2 28l-47 77c-14 23-38 35-67 34l-57-2c-20-1-35-9-43-25z"/>
+              <path d="M825 224c12-20 9-43-1-64l-28-61c-5-11-17-15-26-9-8 5-10 14-6 23l17 42-39-92c-5-12-18-16-28-9-9 6-11 17-6 27l34 83-48-97c-6-12-19-15-29-8-9 6-10 18-5 28l43 92-44-72c-7-11-20-12-29-5-8 7-8 18-2 28l47 77c14 23 38 35 67 34l57-2c20-1 35-9 43-25z"/>
+            </g>
+            <g fill="none" stroke="currentColor" stroke-width="2" opacity=".17">
+              <path d="M120 226c24-24 43-50 58-80M780 226c-24-24-43-50-58-80"/>
+            </g>
+          </svg>
+          <div id="keyboard" class="keyboard" aria-label="Виртуальная русская клавиатура"></div>
+        </div>
+        <p class="keyboard-tip">Старайся держать пальцы на среднем ряду: <b>Ф Ы В А</b> и <b>О Л Д Ж</b>.</p>
+      </section>
+    </main>
+    <footer class="app-footer"><span>BLINDTYPE <span class="footer-dot">•</span> Тренируйся каждый день</span><span>Работает офлайн</span></footer>
+  </div>
+
+  <div id="resultModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+    <div class="result-panel">
+      <div class="result-icon">✓</div><p class="eyebrow">ТРЕНИРОВКА ЗАВЕРШЕНА</p><h2 id="resultTitle">Отличная работа!</h2><p class="result-subtitle">Ты закончил упражнение. Вот твой результат:</p>
+      <div class="result-grid"><div><strong id="finalSpeed">0</strong><span>симв./мин</span></div><div><strong id="finalAccuracy">100%</strong><span>точность</span></div><div><strong id="finalTime">00:00</strong><span>время</span></div><div><strong id="finalErrors">0</strong><span>ошибки</span></div></div>
+      <button id="againBtn" class="primary-btn">Попробовать ещё раз</button>
+    </div>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>
