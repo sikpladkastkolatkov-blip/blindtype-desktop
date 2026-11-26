@@ -17,7 +17,7 @@ jobs:
       - run: npx electron-builder --win nsis --publish never
       - uses: actions/upload-artifact@v4
         with:
-          name: BlindType-Setup
+          name: Swift-Nimble-Exact-Input-System-Setup
           path: dist/*.exe
       - name: Publish release
         shell: bash
@@ -25,4 +25,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest dist/*.exe --title "BlindType Setup" --notes "Установщик BlindType для Windows"
+          gh release create latest dist/*.exe --title "Swift Nimble Exact Input System Setup" --notes "Установщик Swift Nimble Exact Input System для Windows"

@@ -1,9 +1,9 @@
 {
-  "name": "blindtype-desktop",
+  "name": "swift-nimble-exact-input-system",
   "version": "1.0.0",
   "description": "Русский тренажёр слепой печати для Windows",
   "main": "main.js",
-  "author": "BlindType",
+  "author": "Swift Nimble Exact Input System",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -14,8 +14,8 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "ru.blindtype.desktop",
-    "productName": "BlindType",
+    "appId": "ru.swiftnimble.desktop",
+    "productName": "Swift Nimble Exact Input System",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -35,14 +35,14 @@
           "arch": ["x64"]
         }
       ],
-      "artifactName": "BlindType-Setup-${version}.${ext}"
+      "artifactName": "Swift-Nimble-Exact-Input-System-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "BlindType"
+      "shortcutName": "Swift Nimble Exact Input System"
     }
   }
 }

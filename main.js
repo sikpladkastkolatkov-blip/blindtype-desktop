@@ -8,7 +8,7 @@ function createWindow() {
     minWidth: 760,
     minHeight: 650,
     backgroundColor: "#17191f",
-    title: "BlindType",
+    title: "Swift Nimble Exact Input System",
     autoHideMenuBar: true,
     titleBarStyle: "hidden",
     titleBarOverlay: false,

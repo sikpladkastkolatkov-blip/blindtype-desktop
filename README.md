@@ -1,4 +1,4 @@
-# BlindType Desktop
+# Swift Nimble Exact Input System
 
 Самостоятельное Windows-приложение для тренировки слепой печати на русском языке.
 
@@ -18,7 +18,7 @@ npm start
 ```bash
 npm run build
 ```
-Готовый установщик появится в папке `dist` с именем `BlindType-Setup-1.0.0.exe`.
+Готовый установщик появится в папке `dist` с именем `Swift-Nimble-Exact-Input-System-Setup-1.0.0.exe`.
 
 ## Иконка
 Поместите файл `icon.ico` в папку `build` и добавьте в раздел `win` файла `package.json` строку:
