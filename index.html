@@ -47,20 +47,12 @@
       </section>
 
       <section class="keyboard-section">
-        <div class="keyboard-heading"><div><span class="section-kicker">ВИРТУАЛЬНАЯ КЛАВИАТУРА</span><span class="keyboard-note">Русская раскладка · ЙЦУКЕН</span></div><span class="finger-legend"><i></i> Подсказка следующей клавиши</span></div>
+        <div class="keyboard-heading"><div><span class="section-kicker">ВИРТУАЛЬНАЯ КЛАВИАТУРА</span><span class="keyboard-note">Русская раскладка · ЙЦУКЕН</span></div><span class="finger-legend"><i></i> <span id="fingerName">Подсказка следующей клавиши</span></span></div>
         <div class="keyboard-stage">
-          <svg class="hands-art" viewBox="0 0 900 260" role="img" aria-label="Полупрозрачные силуэты рук для правильной постановки пальцев">
-            <g fill="currentColor" opacity=".23">
-              <path d="M75 224c-12-20-9-43 1-64l28-61c5-11 17-15 26-9 8 5 10 14 6 23l-17 42 39-92c5-12 18-16 28-9 9 6 11 17 6 27l-34 83 48-97c6-12 19-15 29-8 9 6 10 18 5 28l-43 92 44-72c7-11 20-12 29-5 8 7 8 18 2 28l-47 77c-14 23-38 35-67 34l-57-2c-20-1-35-9-43-25z"/>
-              <path d="M825 224c12-20 9-43-1-64l-28-61c-5-11-17-15-26-9-8 5-10 14-6 23l17 42-39-92c-5-12-18-16-28-9-9 6-11 17-6 27l34 83-48-97c-6-12-19-15-29-8-9 6-10 18-5 28l43 92-44-72c-7-11-20-12-29-5-8 7-8 18-2 28l47 77c14 23 38 35 67 34l57-2c20-1 35-9 43-25z"/>
-            </g>
-            <g fill="none" stroke="currentColor" stroke-width="2" opacity=".17">
-              <path d="M120 226c24-24 43-50 58-80M780 226c-24-24-43-50-58-80"/>
-            </g>
-          </svg>
+          <svg id="hands" class="hands-art hands-live" role="img" aria-label="Руки: подсвечивается палец, которым нужно нажать следующую клавишу"></svg>
           <div id="keyboard" class="keyboard" aria-label="Виртуальная русская клавиатура"></div>
         </div>
-        <p class="keyboard-tip">Старайся держать пальцы на среднем ряду: <b>Ф Ы В А</b> и <b>О Л Д Ж</b>.</p>
+        <p class="keyboard-tip">Пальцы лежат на среднем ряду: <b>Ф Ы В А</b> и <b>О Л Д Ж</b>. Нужный палец сам потянется к клавише.</p>
       </section>
     </main>
     <footer class="app-footer"><span>BLINDTYPE <span class="footer-dot">•</span> Тренируйся каждый день</span><span>Работает офлайн</span></footer>
