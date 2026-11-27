@@ -8,7 +8,7 @@
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --win nsis",
-    "build:mac": "electron-builder --mac dmg --publish never"
+    "build:mac": "electron-builder --mac dmg --x64 --arm64 --publish never"
   },
   "devDependencies": {
     "electron": "^34.0.0",
@@ -58,13 +58,14 @@
         }
       ],
       "category": "public.app-category.education",
-      "identity": "-",
+      "identity": null,
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "artifactName": "Swift-Nimble-Exact-Input-System-${version}-mac-${arch}.${ext}"
     },
     "dmg": {
       "title": "Swift Nimble Exact Input System"
-    }
+    },
+    "afterPack": "afterPack.js"
   }
 }
