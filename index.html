@@ -8,61 +8,138 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <header class="titlebar">
+    <div class="brand"><span class="brand-mark">S</span><span class="brand-name">Swift Nimble Exact Input System</span></div>
+    <nav class="tabs" aria-label="Разделы">
+      <button class="tab active" data-view="train">Тренировка</button>
+      <button class="tab" data-view="stats">Статистика</button>
+      <button class="tab" data-view="achievements">Достижения</button>
+      <button class="tab" data-view="settings">Настройки</button>
+    </nav>
+    <div class="window-actions">
+      <button class="window-btn" id="minimizeBtn" aria-label="Свернуть">&#8212;</button>
+      <button class="window-btn" id="maximizeBtn" aria-label="Развернуть">&#9633;</button>
+      <button class="window-btn close-btn" id="closeBtn" aria-label="Закрыть">&#215;</button>
+    </div>
+  </header>
+
   <div class="app-shell">
-    <header class="titlebar">
-      <div class="brand"><span class="brand-mark">S</span><span>Swift Nimble Exact Input System</span><span class="brand-caption">ТРЕНАЖЁР ПЕЧАТИ</span></div>
-      <div class="window-actions">
-        <button class="window-btn" id="minimizeBtn" aria-label="Свернуть">—</button>
-        <button class="window-btn" id="maximizeBtn" aria-label="Развернуть">□</button>
-        <button class="window-btn close-btn" id="closeBtn" aria-label="Закрыть">×</button>
-      </div>
-    </header>
-
     <main class="main-content">
-      <section class="topline">
-        <div>
-          <p class="eyebrow">ПЕЧАТАЙ, НЕ СМОТРЯ НА КЛАВИАТУРУ</p>
-          <h1>Тренировка слепой печати</h1>
-          <p class="subtitle">Спокойный темп. Правильные пальцы. Больше точности.</p>
+
+      <!-- ТРЕНИРОВКА -->
+      <section id="view-train" class="view">
+        <div class="topline">
+          <div>
+            <p class="eyebrow">ПЕЧАТАЙ, НЕ СМОТРЯ НА КЛАВИАТУРУ</p>
+            <h1>Тренировка слепой печати</h1>
+            <p class="subtitle">Просто начни печатать — таймер запустится сам.</p>
+          </div>
+          <div class="top-actions">
+            <label class="field-inline"><span>Режим</span>
+              <select id="modeSelect" aria-label="Режим упражнения">
+                <option value="normal">Обычный текст</option>
+                <option value="weak">Проблемные буквы</option>
+              </select>
+            </label>
+            <button id="restartBtn" class="secondary-btn">&#8635; <span>Начать заново</span></button>
+          </div>
         </div>
-        <div class="top-actions">
-          <label class="theme-switch"><span>Тема</span><select id="themeSelect" aria-label="Выбрать тему"><option value="dark">Тёмная</option><option value="light">Светлая</option></select></label>
-          <button id="restartBtn" class="secondary-btn">↻ <span>Начать заново</span></button>
+
+        <section class="stats" aria-label="Статистика тренировки">
+          <article class="stat-card"><span class="stat-label">СКОРОСТЬ</span><strong id="speedStat">0</strong><small>симв./мин</small></article>
+          <article class="stat-card"><span class="stat-label">ТОЧНОСТЬ</span><strong id="accuracyStat">100%</strong><small>точность набора</small></article>
+          <article class="stat-card"><span class="stat-label">ОШИБКИ</span><strong id="errorsStat">0</strong><small>неверных нажатий</small></article>
+          <article class="stat-card"><span class="stat-label">ВРЕМЯ</span><strong id="timeStat">00:00</strong><small>время тренировки</small></article>
+          <article class="stat-card goal-card">
+            <span class="stat-label">ЦЕЛЬ НА ДЕНЬ</span>
+            <strong id="goalStat">0</strong><small id="goalOf">/ 1000 симв.</small>
+            <div class="goal-track"><div id="goalBar"></div></div>
+          </article>
+        </section>
+
+        <section class="practice-card" id="practiceCard">
+          <div class="practice-heading">
+            <div><span class="section-kicker">УПРАЖНЕНИЕ</span><h2 id="modeTitle">Случайный текст</h2></div>
+            <div class="progress-label"><span id="progressText">0%</span><div class="progress-track"><div id="progressBar"></div></div></div>
+          </div>
+          <div id="promptText" class="prompt-text" aria-label="Текст для набора"></div>
+          <div class="practice-footer"><span id="hintText">Нажми любую клавишу, чтобы начать</span><span class="key-hint">ESC — начать заново</span></div>
+          <div class="weak-strip" id="weakStrip"></div>
+        </section>
+
+        <section class="keyboard-section" id="keyboardSection">
+          <div class="keyboard-heading"><div><span class="section-kicker">ВИРТУАЛЬНАЯ КЛАВИАТУРА</span><span class="keyboard-note">Русская раскладка · ЙЦУКЕН</span></div><span class="finger-legend"><i></i> <span id="fingerName">Подсказка следующей клавиши</span></span></div>
+          <div class="keyboard-stage">
+            <svg id="hands" class="hands-art hands-live" role="img" aria-label="Руки: подсвечивается палец, которым нужно нажать следующую клавишу"></svg>
+            <div id="keyboard" class="keyboard" aria-label="Виртуальная русская клавиатура"></div>
+          </div>
+          <p class="keyboard-tip">Пальцы лежат на среднем ряду: <b>Ф Ы В А</b> и <b>О Л Д Ж</b>. Красная точка на клавише — проблемная буква.</p>
+        </section>
+      </section>
+
+      <!-- СТАТИСТИКА -->
+      <section id="view-stats" class="view hidden">
+        <div class="topline"><div><p class="eyebrow">ПРОГРЕСС</p><h1>Статистика</h1><p class="subtitle">Здесь видно, в каких буквах ты ошибаешься чаще всего.</p></div>
+          <div class="top-actions"><button id="trainWeakBtn" class="primary-btn inline">Тренировать проблемные буквы</button></div></div>
+        <section class="stats totals" id="totalsGrid"></section>
+        <div class="two-col">
+          <section class="panel"><h2>Проблемные буквы</h2><div id="weakList"></div></section>
+          <section class="panel"><h2>Последние 7 дней</h2><div id="weekChart" class="week-chart"></div></section>
         </div>
       </section>
 
-      <section class="stats" aria-label="Статистика тренировки">
-        <article class="stat-card"><span class="stat-label">СКОРОСТЬ</span><strong id="speedStat">0</strong><small>симв./мин</small></article>
-        <article class="stat-card"><span class="stat-label">ТОЧНОСТЬ</span><strong id="accuracyStat">100%</strong><small>точность набора</small></article>
-        <article class="stat-card"><span class="stat-label">ОШИБКИ</span><strong id="errorsStat">0</strong><small>неверных символов</small></article>
-        <article class="stat-card"><span class="stat-label">ВРЕМЯ</span><strong id="timeStat">00:00</strong><small>время тренировки</small></article>
+      <!-- ДОСТИЖЕНИЯ -->
+      <section id="view-achievements" class="view hidden">
+        <div class="topline"><div><p class="eyebrow">НАГРАДЫ</p><h1>Достижения</h1><p class="subtitle" id="achSummary"></p></div></div>
+        <section class="ach-grid" id="achGrid"></section>
       </section>
 
-      <section class="practice-card">
-        <div class="practice-heading"><div><span class="section-kicker">УПРАЖНЕНИЕ</span><h2 id="modeTitle">Случайный текст</h2></div><div class="progress-label"><span id="progressText">0%</span><div class="progress-track"><div id="progressBar"></div></div></div></div>
-        <div id="promptText" class="prompt-text" aria-label="Текст для набора"></div>
-        <label class="input-label" for="typingInput">ТВОЙ НАБОР</label>
-        <textarea id="typingInput" rows="2" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="Начни печатать здесь…"></textarea>
-        <div class="practice-footer"><span id="hintText">Нажми любую клавишу, чтобы начать тренировку</span><span class="key-hint">ESC — начать заново</span></div>
-      </section>
-
-      <section class="keyboard-section">
-        <div class="keyboard-heading"><div><span class="section-kicker">ВИРТУАЛЬНАЯ КЛАВИАТУРА</span><span class="keyboard-note">Русская раскладка · ЙЦУКЕН</span></div><span class="finger-legend"><i></i> <span id="fingerName">Подсказка следующей клавиши</span></span></div>
-        <div class="keyboard-stage">
-          <svg id="hands" class="hands-art hands-live" role="img" aria-label="Руки: подсвечивается палец, которым нужно нажать следующую клавишу"></svg>
-          <div id="keyboard" class="keyboard" aria-label="Виртуальная русская клавиатура"></div>
+      <!-- НАСТРОЙКИ -->
+      <section id="view-settings" class="view hidden">
+        <div class="topline"><div><p class="eyebrow">ПАРАМЕТРЫ</p><h1>Настройки</h1><p class="subtitle">Всё сохраняется автоматически.</p></div></div>
+        <div class="settings-grid">
+          <section class="panel">
+            <h2>Экран</h2>
+            <label class="row"><span>Тема</span><select data-setting="theme"><option value="dark">Тёмная</option><option value="light">Светлая</option></select></label>
+            <label class="row"><span>Размер текста упражнения <b id="fontSizeVal"></b></span><input type="range" min="18" max="42" step="1" data-setting="fontSize"></label>
+            <label class="row"><span>Масштаб интерфейса</span>
+              <select data-setting="uiScale"><option value="0.8">80%</option><option value="0.9">90%</option><option value="1">100%</option><option value="1.1">110%</option><option value="1.25">125%</option><option value="1.5">150%</option></select></label>
+            <div class="row"><span>Полный экран <small>(клавиша F11)</small></span><button class="secondary-btn" id="fullscreenBtn">Переключить</button></div>
+            <label class="row"><span>Окно поверх остальных</span><input type="checkbox" data-setting="alwaysOnTop"></label>
+          </section>
+          <section class="panel">
+            <h2>Тренировка</h2>
+            <label class="row"><span>Цель на день</span>
+              <select data-setting="dailyGoal"><option value="300">300 символов</option><option value="500">500 символов</option><option value="1000">1000 символов</option><option value="2000">2000 символов</option><option value="3000">3000 символов</option><option value="5000">5000 символов</option></select></label>
+            <label class="row"><span>Слов в упражнении</span>
+              <select data-setting="words"><option value="12">12</option><option value="24">24</option><option value="36">36</option><option value="60">60</option></select></label>
+            <label class="row"><span>Показывать виртуальную клавиатуру</span><input type="checkbox" data-setting="showKeyboard"></label>
+            <label class="row"><span>Показывать руки</span><input type="checkbox" data-setting="showHands"></label>
+          </section>
+          <section class="panel">
+            <h2>Звук</h2>
+            <label class="row"><span>Звук нажатий</span><input type="checkbox" data-setting="soundKey"></label>
+            <label class="row"><span>Звук ошибки</span><input type="checkbox" data-setting="soundErr"></label>
+          </section>
+          <section class="panel">
+            <h2>Данные</h2>
+            <div class="row"><span>Удалить статистику, достижения и прогресс дня</span><button class="danger-btn" id="resetBtn">Сбросить прогресс</button></div>
+          </section>
         </div>
-        <p class="keyboard-tip">Пальцы лежат на среднем ряду: <b>Ф Ы В А</b> и <b>О Л Д Ж</b>. Нужный палец сам потянется к клавише.</p>
       </section>
+
     </main>
     <footer class="app-footer"><span>SWIFT NIMBLE EXACT INPUT SYSTEM <span class="footer-dot">•</span> Тренируйся каждый день</span><span>Работает офлайн</span></footer>
   </div>
 
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
   <div id="resultModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
     <div class="result-panel">
-      <div class="result-icon">✓</div><p class="eyebrow">ТРЕНИРОВКА ЗАВЕРШЕНА</p><h2 id="resultTitle">Отличная работа!</h2><p class="result-subtitle">Ты закончил упражнение. Вот твой результат:</p>
+      <div class="result-icon">&#10003;</div><p class="eyebrow">ТРЕНИРОВКА ЗАВЕРШЕНА</p><h2 id="resultTitle">Отличная работа!</h2><p class="result-subtitle" id="resultSub">Вот твой результат:</p>
       <div class="result-grid"><div><strong id="finalSpeed">0</strong><span>симв./мин</span></div><div><strong id="finalAccuracy">100%</strong><span>точность</span></div><div><strong id="finalTime">00:00</strong><span>время</span></div><div><strong id="finalErrors">0</strong><span>ошибки</span></div></div>
-      <button id="againBtn" class="primary-btn">Попробовать ещё раз</button>
+      <div id="resultExtra" class="result-extra"></div>
+      <button id="againBtn" class="primary-btn">Ещё раз (Enter)</button>
     </div>
   </div>
   <script src="renderer.js"></script>

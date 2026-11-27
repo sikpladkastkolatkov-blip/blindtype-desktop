@@ -1,8 +1,11 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-// Renderer получает только три безопасных действия управления окном.
+// Renderer получает только безопасные действия управления окном.
 contextBridge.exposeInMainWorld("desktop", {
   minimize: () => ipcRenderer.send("window:minimize"),
   toggleMaximize: () => ipcRenderer.send("window:toggle-maximize"),
-  close: () => ipcRenderer.send("window:close")
+  close: () => ipcRenderer.send("window:close"),
+  toggleFullscreen: () => ipcRenderer.send("window:toggle-fullscreen"),
+  setAlwaysOnTop: (value) => ipcRenderer.send("window:always-on-top", !!value),
+  setZoom: (factor) => ipcRenderer.send("window:zoom", Number(factor) || 1)
 });

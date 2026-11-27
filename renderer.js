@@ -1,9 +1,16 @@
-// Данные упражнения: короткие слова соединяются в естественный тренировочный текст.
-const wordBank = [
-  "солнце","дорога","клавиша","пальцы","скорость","точность","комната","время","работа","весна",
-  "машина","книга","город","облако","система","музыка","природа","встреча","задача","команда",
-  "спокойно","быстро","правильно","сегодня","каждый","новый","сильный","интересный","вместе","вперед"
-];
+// ===== Данные упражнений =====
+const wordBank = (
+  "солнце дорога клавиша пальцы скорость точность комната время работа весна машина книга город облако система музыка природа встреча задача команда " +
+  "спокойно быстро правильно сегодня каждый новый сильный интересный вместе вперед фильм фонарь фабрика форма фрукты февраль физика формула флаг фото " +
+  "цветок центр цель цена цирк царь цифра целый концерт улица щека щука щит площадь товарищ овощи помощь общий щенок щель ощущение " +
+  "этаж экран эхо энергия этот эпоха экзамен эстафета электричество поэт жизнь жук жара жена железо журнал должен можно важный " +
+  "хлеб холод хороший художник хозяин храм хвост воздух йогурт мой твой край музей чай герой юг юбка юноша юмор люблю июль " +
+  "яблоко язык ясно ягода яркий ящик январь заря зима звезда здание зеркало зебра знание объект подъезд съезд объявление субъект изъян " +
+  "зубы зверь берег ветер вечер дерево друг есть живой забота игра идея камень картина лампа лето мост небо облачко окно ответ пример река рука " +
+  "сад слово собака стол страна улыбка успех утро хобби цвет число читать шарик школа шляпа щётка шум эхо юмор радость история сила тишина " +
+  "четверг пятница суббота вторник среда понедельник воскресенье зимний летний осенний весенний бегать прыгать думать видеть слышать писать читать " +
+  "печатать учиться тренироваться стараться получать побеждать продолжать начинать заканчивать выбирать"
+).split(/\s+/).filter(Boolean).filter((w, i, a) => a.indexOf(w) === i && !/ё/.test(w));
 const rows = [
   ["ё","1","2","3","4","5","6","7","8","9","0","-","=","Backspace"],
   ["й","ц","у","к","е","н","г","ш","щ","з","х","ъ"],
@@ -18,24 +25,59 @@ const codeToChar = {
   Semicolon:"ж",Quote:"э",KeyZ:"я",KeyX:"ч",KeyC:"с",KeyV:"м",KeyB:"и",KeyN:"т",KeyM:"ь",Comma:"б",Period:"ю",Slash:".",Space:" "
 };
 const keyboard = document.getElementById("keyboard");
-const input = document.getElementById("typingInput");
 const promptEl = document.getElementById("promptText");
 const modal = document.getElementById("resultModal");
-let target = "";
-let startedAt = null;
-let timerId = null;
-let finished = false;
-let lastPressed = null;
+const $ = (id) => document.getElementById(id);
 
+// ===== Хранилище (localStorage с защитой от ошибок) =====
+const DATA_KEY = "sneis-data-v1", SET_KEY = "sneis-settings-v1";
+const defaultData = () => ({chars: {}, totals: {exercises: 0, chars: 0, seconds: 0, bestSpeed: 0, perfect: 0, fixer: 0}, days: {}, goalDays: {}, ach: {}});
+const defaultSettings = {theme: "dark", fontSize: 26, uiScale: 1, showKeyboard: true, showHands: true, alwaysOnTop: false, words: 24, dailyGoal: 1000, soundKey: false, soundErr: false, mode: "normal"};
+function readStore(key, def) {
+  try { const raw = localStorage.getItem(key); if (raw) return {...def, ...JSON.parse(raw)}; } catch (e) {}
+  return {...def};
+}
+function writeStore(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {} }
+let data = readStore(DATA_KEY, defaultData());
+data.totals = {...defaultData().totals, ...data.totals};
+let settings = readStore(SET_KEY, defaultSettings);
+const saveData = () => writeStore(DATA_KEY, data);
+const saveSettings = () => writeStore(SET_KEY, settings);
+const todayKey = () => new Date().toLocaleDateString("sv-SE");
+function dayRecord(key = todayKey()) { return data.days[key] || (data.days[key] = {chars: 0, ex: 0}); }
+
+// ===== Состояние упражнения =====
+let target = "", typed = "", startedAt = null, timerId = null, finished = false, ks = 0, ms = 0, weakActive = false, currentView = "train", unsaved = 0;
+
+// ===== Проблемные буквы =====
+function weakLetters(limit = 5) {
+  const list = [];
+  for (const [ch, s] of Object.entries(data.chars)) {
+    if (ch === " " || s.a < 6 || s.e < 2) continue;
+    const rate = s.e / s.a;
+    if (rate >= 0.08) list.push({ch, rate, a: s.a, e: s.e, score: rate * Math.log(2 + s.a)});
+  }
+  return list.sort((x, y) => y.score - x.score).slice(0, limit);
+}
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function makeText() {
-  const count = 24;
+  const n = Number(settings.words) || 24, weak = settings.mode === "weak" ? weakLetters(4).map(w => w.ch) : [];
+  weakActive = weak.length > 0;
+  const weighted = [];
+  if (weakActive) for (const w of wordBank) { const s = [...w].filter(c => weak.includes(c)).length; for (let i = 0; i < s; i++) weighted.push(w); }
   const words = [];
-  for (let i = 0; i < count; i++) words.push(wordBank[Math.floor(Math.random() * wordBank.length)]);
+  for (let i = 0; i < n; i++) {
+    let w, tries = 0;
+    do { w = weakActive && weighted.length && Math.random() < 0.85 ? pick(weighted) : pick(wordBank); } while (w === words[i - 1] && ++tries < 8);
+    words.push(w);
+  }
   return words.join(" ");
 }
+
+// ===== Клавиатура =====
 function createKeyboard() {
   keyboard.innerHTML = "";
-  rows.forEach((row, rowIndex) => {
+  rows.forEach((row) => {
     const rowEl = document.createElement("div");
     rowEl.className = "key-row";
     row.forEach((label) => {
@@ -46,7 +88,6 @@ function createKeyboard() {
       key.textContent = label === " " ? "Пробел" : label;
       if (label === "Backspace") key.classList.add("wide");
       if (label === " ") key.classList.add("space");
-      if (rowIndex === 0 && ["Backspace"].includes(label)) key.classList.add("wide");
       rowEl.appendChild(key);
     });
     keyboard.appendChild(rowEl);
@@ -56,106 +97,279 @@ function keyForChar(char) {
   const normalized = char?.toLowerCase();
   return [...keyboard.querySelectorAll(".key")].find(el => el.dataset.char === normalized);
 }
+function markWeakKeys() {
+  const weak = new Set(weakLetters(5).map(w => w.ch));
+  keyboard.querySelectorAll(".key").forEach(k => k.classList.toggle("weak", weak.has(k.dataset.char)));
+}
 function highlightNext() {
-  keyboard.querySelectorAll(".key").forEach(k => k.classList.remove("active"));
-  const next = target[input.value.length];
+  keyboard.querySelectorAll(".key.active").forEach(k => k.classList.remove("active"));
+  const next = target[typed.length];
   if (next !== undefined) keyForChar(next)?.classList.add("active");
   setActiveFinger(next);
 }
+function flashKey(el, cls) {
+  if (!el) return;
+  el.classList.remove("pressed", "error");
+  void el.offsetWidth;
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), 170);
+}
+
+// ===== Отрисовка упражнения =====
 function renderPrompt() {
-  const typed = input.value;
   promptEl.innerHTML = "";
   for (let i = 0; i < target.length; i++) {
     const span = document.createElement("span");
-    span.textContent = target[i];
-    if (i < typed.length) span.className = typed[i] === target[i] ? "correct" : "incorrect";
-    else if (i === typed.length) span.className = "current";
+    const isSpace = target[i] === " ";
+    const state = i < typed.length ? (typed[i] === target[i] ? "correct" : "incorrect") : i === typed.length ? "current" : "";
+    // Текущий/ошибочный пробел рисуем видимым (два неразрывных), иначе подчёркивание в конце слова пропадает.
+    // \u200b после них сохраняет возможность переноса строки.
+    span.textContent = isSpace && state !== "correct" ? "\u00a0\u00a0\u200b" : target[i];
+    if (state) span.className = state;
     promptEl.appendChild(span);
   }
   const progress = Math.min(100, Math.round(typed.length / target.length * 100));
-  document.getElementById("progressText").textContent = progress + "%";
-  document.getElementById("progressBar").style.width = progress + "%";
+  $("progressText").textContent = progress + "%";
+  $("progressBar").style.width = progress + "%";
+  promptEl.querySelector(".current")?.scrollIntoView({block: "nearest"});
 }
 function getMetrics() {
-  const typed = input.value;
-  let correct = 0, errors = 0;
-  for (let i = 0; i < typed.length; i++) {
-    if (typed[i] === target[i]) correct++;
-    else errors++;
-  }
+  let correct = 0;
+  for (let i = 0; i < typed.length; i++) if (typed[i] === target[i]) correct++;
   const elapsed = startedAt ? Math.max(1, (Date.now() - startedAt) / 1000) : 0;
-  const accuracy = typed.length ? Math.round(correct / typed.length * 100) : 100;
-  const speed = elapsed ? Math.round(correct / elapsed * 60) : 0;
-  return {correct, errors, accuracy, speed, elapsed};
+  return {correct, errors: ms, accuracy: ks ? Math.max(0, Math.round((ks - ms) / ks * 100)) : 100, speed: elapsed ? Math.round(correct / elapsed * 60) : 0, elapsed};
 }
-function formatTime(seconds) {
-  const s = Math.floor(seconds);
-  return `${String(Math.floor(s / 60)).padStart(2,"0")}:${String(s % 60).padStart(2,"0")}`;
-}
+const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s) % 60).padStart(2, "0")}`;
 function updateStats() {
   const m = getMetrics();
-  document.getElementById("speedStat").textContent = m.speed;
-  document.getElementById("accuracyStat").textContent = m.accuracy + "%";
-  document.getElementById("errorsStat").textContent = m.errors;
-  document.getElementById("timeStat").textContent = formatTime(m.elapsed);
+  $("speedStat").textContent = m.speed;
+  $("accuracyStat").textContent = m.accuracy + "%";
+  $("errorsStat").textContent = m.errors;
+  $("timeStat").textContent = formatTime(m.elapsed);
 }
+function updateGoal() {
+  const goal = Number(settings.dailyGoal) || 1000, done = dayRecord().chars;
+  $("goalStat").textContent = done;
+  $("goalOf").textContent = done >= goal ? "цель выполнена ✓" : `/ ${goal} симв.`;
+  $("goalBar").style.width = Math.min(100, done / goal * 100) + "%";
+  $("goalBar").parentElement.classList.toggle("done", done >= goal);
+}
+function renderWeakStrip() {
+  const weak = weakLetters(5), el = $("weakStrip");
+  if (!weak.length) { el.innerHTML = '<span class="muted-text">Проблемные буквы появятся здесь, когда накопится статистика ошибок.</span>'; return; }
+  el.innerHTML = '<span class="muted-text">Проблемные буквы:</span>' + weak.map(w => `<span class="chip"><b>${w.ch}</b> ${Math.round(w.rate * 100)}%</span>`).join("");
+}
+function updateModeTitle() {
+  $("modeTitle").textContent = settings.mode === "weak" ? (weakActive ? "Проблемные буквы" : "Проблемные буквы (пока нет данных — обычный текст)") : "Случайный текст";
+  $("modeSelect").value = settings.mode;
+}
+
+// ===== Звук =====
+let audioCtx = null;
+function beep(freq, dur, vol) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain(), t = audioCtx.currentTime;
+    o.frequency.value = freq; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + dur);
+  } catch (e) {}
+}
+
+// ===== Достижения =====
+function streakDays() {
+  let n = 0; const d = new Date();
+  if (!(data.days[d.toLocaleDateString("sv-SE")]?.ex > 0)) d.setDate(d.getDate() - 1);
+  while (data.days[d.toLocaleDateString("sv-SE")]?.ex > 0) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+const ACHIEVEMENTS = [
+  {id: "first", icon: "🌱", title: "Первый шаг", desc: "Заверши первое упражнение", max: 1, cur: () => data.totals.exercises},
+  {id: "ten", icon: "🔟", title: "Разогрев", desc: "Заверши 10 упражнений", max: 10, cur: () => data.totals.exercises},
+  {id: "fifty", icon: "🏋️", title: "Постоянство", desc: "Заверши 50 упражнений", max: 50, cur: () => data.totals.exercises},
+  {id: "perfect", icon: "🎯", title: "Ни одной ошибки", desc: "Пройди упражнение со 100% точностью", max: 1, cur: () => data.totals.perfect},
+  {id: "speed100", icon: "⚡", title: "Скорость 100", desc: "Достигни 100 симв./мин", max: 100, cur: () => data.totals.bestSpeed},
+  {id: "speed200", icon: "🚀", title: "Скорость 200", desc: "Достигни 200 симв./мин", max: 200, cur: () => data.totals.bestSpeed},
+  {id: "speed300", icon: "🔥", title: "Скорость 300", desc: "Достигни 300 симв./мин", max: 300, cur: () => data.totals.bestSpeed},
+  {id: "chars1k", icon: "📝", title: "Тысяча знаков", desc: "Напечатай 1 000 символов", max: 1000, cur: () => data.totals.chars},
+  {id: "chars10k", icon: "📚", title: "Десять тысяч", desc: "Напечатай 10 000 символов", max: 10000, cur: () => data.totals.chars},
+  {id: "goal", icon: "✅", title: "Цель достигнута", desc: "Выполни цель на день", max: 1, cur: () => Object.keys(data.goalDays).length},
+  {id: "goal7", icon: "🏆", title: "Неделя целей", desc: "Выполни цель на день 7 раз", max: 7, cur: () => Object.keys(data.goalDays).length},
+  {id: "streak3", icon: "📅", title: "Три дня подряд", desc: "Тренируйся 3 дня подряд", max: 3, cur: streakDays},
+  {id: "streak7", icon: "🗓️", title: "Неделя подряд", desc: "Тренируйся 7 дней подряд", max: 7, cur: streakDays},
+  {id: "fixer", icon: "🛠️", title: "Работа над ошибками", desc: "Пройди упражнение на проблемные буквы с точностью от 95%", max: 1, cur: () => data.totals.fixer},
+  {id: "hour", icon: "⏱️", title: "Час практики", desc: "Суммарно потренируйся 1 час", max: 3600, cur: () => Math.round(data.totals.seconds)}
+];
+function toast(text) {
+  const el = document.createElement("div");
+  el.className = "toast"; el.textContent = text;
+  $("toasts").appendChild(el);
+  setTimeout(() => el.classList.add("out"), 3600);
+  setTimeout(() => el.remove(), 4100);
+}
+function checkAchievements() {
+  const fresh = [];
+  for (const a of ACHIEVEMENTS) if (!data.ach[a.id] && a.cur() >= a.max) { data.ach[a.id] = Date.now(); fresh.push(a); toast(`${a.icon} Достижение: ${a.title}`); }
+  if (fresh.length) saveData();
+  return fresh;
+}
+function renderAchievements() {
+  const got = ACHIEVEMENTS.filter(a => data.ach[a.id]).length;
+  $("achSummary").textContent = `Открыто ${got} из ${ACHIEVEMENTS.length}`;
+  $("achGrid").innerHTML = ACHIEVEMENTS.map(a => {
+    const ok = !!data.ach[a.id], cur = Math.min(a.cur(), a.max);
+    return `<article class="ach ${ok ? "unlocked" : "locked"}"><div class="ach-icon">${a.icon}</div><div class="ach-body"><h3>${a.title}</h3><p>${a.desc}</p>` +
+      `<div class="ach-bar"><div style="width:${Math.round(cur / a.max * 100)}%"></div></div><small>${ok ? "Получено" : `${cur} / ${a.max}`}</small></div></article>`;
+  }).join("");
+}
+
+// ===== Статистика =====
+function renderStats() {
+  const t = data.totals;
+  let a = 0, e = 0;
+  for (const s of Object.values(data.chars)) { a += s.a; e += s.e; }
+  const mins = Math.floor(t.seconds / 60);
+  const cards = [["УПРАЖНЕНИЙ", t.exercises, "завершено"], ["СИМВОЛОВ", t.chars, "напечатано верно"], ["ВРЕМЯ", mins >= 60 ? `${Math.floor(mins / 60)}ч ${mins % 60}м` : `${mins} мин`, "в тренировках"],
+    ["РЕКОРД", t.bestSpeed, "симв./мин"], ["ТОЧНОСТЬ", a ? Math.round((a - e) / a * 100) + "%" : "—", "за всё время"], ["СЕРИЯ", streakDays(), "дней подряд"]];
+  $("totalsGrid").innerHTML = cards.map(([l, v, s]) => `<article class="stat-card"><span class="stat-label">${l}</span><strong>${v}</strong><small>${s}</small></article>`).join("");
+  const rowsData = Object.entries(data.chars).filter(([ch, s]) => ch !== " " && s.a >= 3 && s.e > 0).map(([ch, s]) => ({ch, a: s.a, e: s.e, rate: s.e / s.a})).sort((x, y) => y.rate - x.rate).slice(0, 10);
+  $("weakList").innerHTML = rowsData.length ? rowsData.map(r => `<div class="weak-row"><span class="weak-letter">${r.ch}</span><div class="weak-bar"><div style="width:${Math.min(100, Math.round(r.rate * 100) * 2)}%"></div></div><span class="weak-num">${Math.round(r.rate * 100)}% · ${r.e} из ${r.a}</span></div>`).join("")
+    : '<p class="muted-text">Пока нет ошибок для анализа. Потренируйся, и здесь появятся буквы, которые стоит подтянуть.</p>';
+  const days = [];
+  for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); days.push({k: d.toLocaleDateString("sv-SE"), l: d.toLocaleDateString("ru-RU", {weekday: "short"})}); }
+  const max = Math.max(1, Number(settings.dailyGoal) || 1000, ...days.map(d => data.days[d.k]?.chars || 0));
+  $("weekChart").innerHTML = days.map(d => { const c = data.days[d.k]?.chars || 0; return `<div class="wk"><div class="wk-bar ${data.goalDays[d.k] ? "goal" : ""}" style="height:${Math.max(3, Math.round(c / max * 100))}%" title="${c} симв."></div><span>${d.l}</span><small>${c}</small></div>`; }).join("");
+}
+
+// ===== Ход упражнения =====
 function finish() {
   if (finished) return;
   finished = true;
   clearInterval(timerId);
-  const m = getMetrics();
-  document.getElementById("finalSpeed").textContent = m.speed;
-  document.getElementById("finalAccuracy").textContent = m.accuracy + "%";
-  document.getElementById("finalTime").textContent = formatTime(m.elapsed);
-  document.getElementById("finalErrors").textContent = m.errors;
+  const m = getMetrics(), t = data.totals;
+  t.exercises++; t.seconds += m.elapsed; t.bestSpeed = Math.max(t.bestSpeed, m.speed);
+  if (ms === 0) t.perfect++;
+  if (weakActive && m.accuracy >= 95) t.fixer++;
+  dayRecord().ex++;
+  saveData(); unsaved = 0;
+  const fresh = checkAchievements();
+  $("finalSpeed").textContent = m.speed; $("finalAccuracy").textContent = m.accuracy + "%";
+  $("finalTime").textContent = formatTime(m.elapsed); $("finalErrors").textContent = m.errors;
+  const goal = Number(settings.dailyGoal) || 1000, done = dayRecord().chars, weak = weakLetters(3);
+  let extra = `<p>Цель на день: <b>${Math.min(done, goal)} / ${goal}</b> символов${done >= goal ? " — выполнена ✓" : ""}</p>`;
+  if (weak.length) extra += `<p>Проблемные буквы: ${weak.map(w => `<b>${w.ch}</b> (${Math.round(w.rate * 100)}%)`).join(", ")}</p>`;
+  if (fresh.length) extra += `<p class="ach-line">${fresh.map(a => `${a.icon} ${a.title}`).join(" · ")}</p>`;
+  $("resultExtra").innerHTML = extra;
   modal.classList.remove("hidden");
-  document.getElementById("againBtn").focus();
+  $("againBtn").focus();
+  markWeakKeys(); renderWeakStrip();
 }
 function restart() {
   clearInterval(timerId);
-  timerId = null; startedAt = null; finished = false;
+  timerId = null; startedAt = null; finished = false; typed = ""; ks = 0; ms = 0;
   target = makeText();
-  input.value = "";
-  input.disabled = false;
   modal.classList.add("hidden");
-  document.getElementById("hintText").textContent = "Нажми любую клавишу, чтобы начать тренировку";
-  renderPrompt(); updateStats(); highlightNext(); input.focus();
+  $("hintText").textContent = "Нажми любую клавишу, чтобы начать";
+  renderPrompt(); updateStats(); updateGoal(); updateModeTitle(); renderWeakStrip(); markWeakKeys(); highlightNext();
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
 }
-input.addEventListener("input", () => {
-  if (finished) return;
-  if (input.value.length > target.length) input.value = input.value.slice(0, target.length);
-  if (!startedAt && input.value.length) {
+function resolveChar(e) {
+  if (e.key.length !== 1) return null;
+  let ch = e.key.toLowerCase();
+  // Если включена латинская раскладка, берём русскую букву по положению клавиши.
+  if (/[a-z]/.test(ch) && codeToChar[e.code]) ch = codeToChar[e.code];
+  return ch;
+}
+function handleTyping(e) {
+  if (e.key === "Backspace") { if (typed.length) { typed = typed.slice(0, -1); renderPrompt(); highlightNext(); } return; }
+  const ch = resolveChar(e);
+  if (ch === null || typed.length >= target.length) return;
+  if (!startedAt) {
     startedAt = Date.now();
     timerId = setInterval(updateStats, 250);
-    document.getElementById("hintText").textContent = "Отлично! Продолжай в своём темпе";
+    $("hintText").textContent = "Отлично! Продолжай в своём темпе";
   }
+  const expected = target[typed.length], ok = ch === expected;
+  const st = data.chars[expected] || (data.chars[expected] = {a: 0, e: 0});
+  st.a++; ks++;
+  if (ok) {
+    data.totals.chars++;
+    const rec = dayRecord(), goal = Number(settings.dailyGoal) || 1000;
+    rec.chars++;
+    if (rec.chars === goal) { data.goalDays[todayKey()] = true; toast("🎉 Цель на день выполнена!"); checkAchievements(); }
+    updateGoal();
+  } else { st.e++; ms++; }
+  if (settings.soundKey && ok) beep(900, 0.04, 0.05);
+  if (settings.soundErr && !ok) beep(160, 0.12, 0.08);
+  flashKey(keyForChar(ch), ok ? "pressed" : "error");
+  if (ok) tapHands();
+  typed += ch;
+  if (++unsaved >= 25) { saveData(); unsaved = 0; }
   renderPrompt(); updateStats(); highlightNext();
-  if (input.value.length >= target.length) finish();
+  if (typed.length >= target.length) finish();
+}
+
+// ===== Вкладки и настройки =====
+function showView(name) {
+  currentView = name;
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("hidden", v.id !== "view-" + name));
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.view === name));
+  if (name === "stats") renderStats();
+  if (name === "achievements") renderAchievements();
+  if (name === "train") { applyKeyboardVisibility(); requestAnimationFrame(layoutHands); }
+}
+function applyKeyboardVisibility() {
+  $("keyboardSection").classList.toggle("hidden", !settings.showKeyboard);
+  handsSvg.style.display = settings.showHands ? "" : "none";
+}
+function applySettings() {
+  document.body.classList.toggle("light", settings.theme === "light");
+  document.documentElement.style.setProperty("--prompt-size", settings.fontSize + "px");
+  $("fontSizeVal").textContent = settings.fontSize + " px";
+  applyKeyboardVisibility();
+  window.desktop?.setZoom?.(Number(settings.uiScale) || 1);
+  window.desktop?.setAlwaysOnTop?.(!!settings.alwaysOnTop);
+  updateGoal();
+  requestAnimationFrame(layoutHands);
+}
+function bindSettings() {
+  document.querySelectorAll("[data-setting]").forEach(el => {
+    const key = el.dataset.setting;
+    if (el.type === "checkbox") el.checked = !!settings[key]; else el.value = settings[key];
+    el.addEventListener("input", () => {
+      const prev = settings[key];
+      settings[key] = el.type === "checkbox" ? el.checked : el.type === "range" ? Number(el.value) : (isNaN(Number(el.value)) ? el.value : Number(el.value));
+      saveSettings(); applySettings();
+      if (key === "words" && prev !== settings[key]) restart();
+    });
+  });
+}
+
+// ===== Обработчики =====
+window.addEventListener("keydown", (e) => {
+  if (e.key === "F11") { e.preventDefault(); window.desktop?.toggleFullscreen?.(); return; }
+  if (!modal.classList.contains("hidden")) { if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); restart(); } return; }
+  if (currentView !== "train") return;
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === "Escape") { e.preventDefault(); restart(); return; }
+  if (e.key === "Tab") { e.preventDefault(); return; }
+  if (e.key === "Backspace" || e.key.length === 1) { e.preventDefault(); handleTyping(e); }
 });
-input.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") { event.preventDefault(); restart(); return; }
-  if (event.key === "Tab") event.preventDefault();
-  const expected = target[input.value.length];
-  const pressed = event.key === " " ? " " : event.key.toLowerCase();
-  const visual = keyForChar(expected);
-  if (visual && event.key.length === 1) {
-    visual.classList.remove("pressed","error");
-    void visual.offsetWidth;
-    if (pressed === expected) visual.classList.add("pressed");
-    else visual.classList.add("error");
-    lastPressed = visual;
-    tapHands();
-    setTimeout(() => visual.classList.remove("pressed","error"), 180);
-  }
+window.addEventListener("beforeunload", saveData);
+document.addEventListener("click", (e) => { e.target.closest?.("button")?.blur(); });
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => showView(t.dataset.view)));
+$("restartBtn").addEventListener("click", restart);
+$("againBtn").addEventListener("click", restart);
+$("modeSelect").addEventListener("change", (e) => { settings.mode = e.target.value; saveSettings(); restart(); });
+$("trainWeakBtn").addEventListener("click", () => { settings.mode = "weak"; saveSettings(); showView("train"); restart(); });
+$("fullscreenBtn").addEventListener("click", () => window.desktop?.toggleFullscreen?.());
+$("resetBtn").addEventListener("click", () => {
+  if (!confirm("Удалить всю статистику, достижения и прогресс дня? Это нельзя отменить.")) return;
+  data = defaultData(); saveData(); restart(); renderStats(); renderAchievements(); toast("Прогресс сброшен");
 });
-document.getElementById("restartBtn").addEventListener("click", restart);
-document.getElementById("againBtn").addEventListener("click", restart);
-document.getElementById("themeSelect").addEventListener("change", (e) => {
-  document.body.classList.toggle("light", e.target.value === "light");
-});
-document.getElementById("minimizeBtn").addEventListener("click", () => window.desktop?.minimize());
-document.getElementById("maximizeBtn").addEventListener("click", () => window.desktop?.toggleMaximize());
-document.getElementById("closeBtn").addEventListener("click", () => window.desktop?.close());
+$("minimizeBtn").addEventListener("click", () => window.desktop?.minimize());
+$("maximizeBtn").addEventListener("click", () => window.desktop?.toggleMaximize());
+$("closeBtn").addEventListener("click", () => window.desktop?.close());
 
 // ---------- Руки в стиле рентгена: кости фиксированной длины ----------
 // Палец не растягивается: если клавиша далеко, смещается вся кисть; вблизи палец «сгибается» (становится короче в проекции).
@@ -323,6 +537,8 @@ window.addEventListener("resize", layoutHands);
 if (window.ResizeObserver) new ResizeObserver(layoutHands).observe(stage);
 
 createKeyboard();
+bindSettings();
+applySettings();
 layoutHands();
 restart();
 requestAnimationFrame(handsFrame);
