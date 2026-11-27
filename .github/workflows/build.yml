@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build Windows and macOS apps
 on:
   workflow_dispatch:
   push:
@@ -6,7 +6,7 @@ on:
 permissions:
   contents: write
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,12 +17,34 @@ jobs:
       - run: npx electron-builder --win nsis --publish never
       - uses: actions/upload-artifact@v4
         with:
-          name: Swift-Nimble-Exact-Input-System-Setup
+          name: windows
           path: dist/*.exe
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npx electron-builder --mac dmg --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*.dmg
+  release:
+    needs: [build-windows, build-mac]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
       - name: Publish release
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
+          ls -la out
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest dist/*.exe --title "Swift Nimble Exact Input System Setup" --notes "Установщик Swift Nimble Exact Input System для Windows"
+          gh release create latest out/* --title "Swift Nimble Exact Input System" --notes "Windows: файл .exe. Mac: файл .dmg (Apple Silicon: arm64, Intel: x64)."

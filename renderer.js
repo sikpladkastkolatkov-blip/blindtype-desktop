@@ -667,6 +667,7 @@ buildHands();
 window.addEventListener("resize", layoutHands);
 if (window.ResizeObserver) new ResizeObserver(layoutHands).observe(stage);
 
+if (window.desktop?.platform === "darwin") document.body.classList.add("mac");
 createKeyboard();
 bindSettings();
 applySettings();

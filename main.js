@@ -11,7 +11,7 @@ function createWindow() {
     backgroundColor: "#17191f",
     title: "Swift Nimble Exact Input System",
     autoHideMenuBar: true,
-    titleBarStyle: "hidden",
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",   // на Mac остаются родные кнопки слева
     titleBarOverlay: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),

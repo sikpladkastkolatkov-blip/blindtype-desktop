@@ -149,3 +149,6 @@ select{background:var(--panel2);color:var(--text);border:1px solid var(--line);b
 @media(max-width:600px){.main-content{width:calc(100% - 24px)}.stats,.stats.totals{grid-template-columns:repeat(2,1fr)}.keyboard-section{display:none}.ach-row{grid-template-columns:1fr}.tab{padding:0 9px}}
 .row input.num{width:100px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;user-select:text}
 .row input.num:focus{outline:1px solid #65d6a0}
+/* macOS: родные кнопки окна слева, свои скрыты */
+body.mac .window-actions{display:none}
+body.mac .brand{padding-left:84px}
