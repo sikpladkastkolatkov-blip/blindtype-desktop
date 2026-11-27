@@ -39,6 +39,7 @@
               <select id="modeSelect" aria-label="Режим упражнения">
                 <option value="normal">Обычный текст</option>
                 <option value="weak">Проблемные буквы</option>
+                <option value="sentences">Предложения</option>
               </select>
             </label>
             <button id="restartBtn" class="secondary-btn">&#8635; <span>Начать заново</span></button>
@@ -46,13 +47,13 @@
         </div>
 
         <section class="stats" aria-label="Статистика тренировки">
-          <article class="stat-card"><span class="stat-label">СКОРОСТЬ</span><strong id="speedStat">0</strong><small>симв./мин</small></article>
+          <article class="stat-card"><span class="stat-label">СКОРОСТЬ</span><strong id="speedStat">0</strong><small id="speedSub">симв./мин</small></article>
           <article class="stat-card"><span class="stat-label">ТОЧНОСТЬ</span><strong id="accuracyStat">100%</strong><small>точность набора</small></article>
           <article class="stat-card"><span class="stat-label">ОШИБКИ</span><strong id="errorsStat">0</strong><small>неверных нажатий</small></article>
           <article class="stat-card"><span class="stat-label">ВРЕМЯ</span><strong id="timeStat">00:00</strong><small>время тренировки</small></article>
           <article class="stat-card goal-card">
             <span class="stat-label">ЦЕЛЬ НА ДЕНЬ</span>
-            <strong id="goalStat">0</strong><small id="goalOf">/ 1000 симв.</small>
+            <strong id="goalStat">0</strong><small id="goalOf">/ 25 упр.</small>
             <div class="goal-track"><div id="goalBar"></div></div>
           </article>
         </section>
@@ -84,14 +85,14 @@
         <section class="stats totals" id="totalsGrid"></section>
         <div class="two-col">
           <section class="panel"><h2>Проблемные буквы</h2><div id="weakList"></div></section>
-          <section class="panel"><h2>Последние 7 дней</h2><div id="weekChart" class="week-chart"></div></section>
+          <section class="panel"><h2>Последние 7 дней <small class="muted-text">· упражнения</small></h2><div id="weekChart" class="week-chart"></div></section>
         </div>
       </section>
 
       <!-- ДОСТИЖЕНИЯ -->
       <section id="view-achievements" class="view hidden">
         <div class="topline"><div><p class="eyebrow">НАГРАДЫ</p><h1>Достижения</h1><p class="subtitle" id="achSummary"></p></div></div>
-        <section class="ach-grid" id="achGrid"></section>
+        <section class="ach-groups" id="achGrid"></section>
       </section>
 
       <!-- НАСТРОЙКИ -->
@@ -109,8 +110,7 @@
           </section>
           <section class="panel">
             <h2>Тренировка</h2>
-            <label class="row"><span>Цель на день</span>
-              <select data-setting="dailyGoal"><option value="300">300 символов</option><option value="500">500 символов</option><option value="1000">1000 символов</option><option value="2000">2000 символов</option><option value="3000">3000 символов</option><option value="5000">5000 символов</option></select></label>
+            <label class="row"><span>Цель на день, упражнений <small>(от 25 до 500)</small></span><input type="number" class="num" min="25" max="500" step="1" data-setting="dailyExercises"></label>
             <label class="row"><span>Слов в упражнении</span>
               <select data-setting="words"><option value="12">12</option><option value="24">24</option><option value="36">36</option><option value="60">60</option></select></label>
             <label class="row"><span>Показывать виртуальную клавиатуру</span><input type="checkbox" data-setting="showKeyboard"></label>

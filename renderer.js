@@ -31,8 +31,8 @@ const $ = (id) => document.getElementById(id);
 
 // ===== Хранилище (localStorage с защитой от ошибок) =====
 const DATA_KEY = "sneis-data-v1", SET_KEY = "sneis-settings-v1";
-const defaultData = () => ({chars: {}, totals: {exercises: 0, chars: 0, seconds: 0, bestSpeed: 0, perfect: 0, fixer: 0}, days: {}, goalDays: {}, ach: {}});
-const defaultSettings = {theme: "dark", fontSize: 26, uiScale: 1, showKeyboard: true, showHands: true, alwaysOnTop: false, words: 24, dailyGoal: 1000, soundKey: false, soundErr: false, mode: "normal"};
+const defaultData = () => ({chars: {}, totals: {exercises: 0, chars: 0, seconds: 0, bestSpeed: 0, perfect: 0, fixer: 0, sentences: 0, weakEx: 0, bestAcc: 0, perfectRun: 0, bestPerfectRun: 0, combo: 0, records: 0, maxDayEx: 0, early: 0, owl: 0}, days: {}, goalDays: {}, ach: {}});
+const defaultSettings = {theme: "dark", fontSize: 26, uiScale: 1, showKeyboard: true, showHands: true, alwaysOnTop: false, words: 24, dailyExercises: 25, soundKey: false, soundErr: false, mode: "normal"};
 function readStore(key, def) {
   try { const raw = localStorage.getItem(key); if (raw) return {...def, ...JSON.parse(raw)}; } catch (e) {}
   return {...def};
@@ -47,20 +47,66 @@ const todayKey = () => new Date().toLocaleDateString("sv-SE");
 function dayRecord(key = todayKey()) { return data.days[key] || (data.days[key] = {chars: 0, ex: 0}); }
 
 // ===== Состояние упражнения =====
-let target = "", typed = "", startedAt = null, timerId = null, finished = false, ks = 0, ms = 0, weakActive = false, currentView = "train", unsaved = 0;
+let exMode = "normal", target = "", typed = "", startedAt = null, timerId = null, finished = false, ks = 0, ms = 0, weakActive = false, currentView = "train", unsaved = 0;
 
 // ===== Проблемные буквы =====
 function weakLetters(limit = 5) {
   const list = [];
   for (const [ch, s] of Object.entries(data.chars)) {
-    if (ch === " " || s.a < 6 || s.e < 2) continue;
+    if (!/[а-я]/.test(ch) || s.a < 6 || s.e < 2) continue;
     const rate = s.e / s.a;
     if (rate >= 0.08) list.push({ch, rate, a: s.a, e: s.e, score: rate * Math.log(2 + s.a)});
   }
   return list.sort((x, y) => y.score - x.score).slice(0, limit);
 }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+const sentenceBank = [
+  "Жизнь прекрасна, когда рядом хорошие друзья.","Утром я пью горячий чай и читаю новости.","Мы поехали в горы, чтобы увидеть восход солнца.",
+  "Хороший разговор лучше долгого молчания.","Весной в нашем городе цветут яблони и сирень.","Каждый день нужно делать маленький шаг вперед.",
+  "Книга открывает перед нами целый мир.","Скорость приходит с практикой, а точность с вниманием.","На улице идет дождь, но дома тепло и уютно.",
+  "Мой друг очень любит играть на гитаре по вечерам.","Река медленно течет между зеленых холмов.","Если долго тренироваться, пальцы начнут находить буквы сами.",
+  "Вечером мы всей семьей собираемся за большим столом.","Старый маяк стоит на берегу уже сто лет.","Кошка тихо сидит на подоконнике и смотрит на птиц.",
+  "Терпение и труд все перетрут.","Без труда не вытянешь и рыбку из пруда.","Одна голова хорошо, а две лучше.","Семь раз отмерь, один раз отрежь.",
+  "Не имей сто рублей, а имей сто друзей.","Повторение мать учения.","Лучше поздно, чем никогда.","Ученье свет, а неученье тьма.","Что посеешь, то и пожнешь.",
+  "Утро вечера мудренее.","Работа не волк, в лес не убежит.","Тише едешь, дальше будешь.","Красота спасет мир, а доброта согреет сердце.",
+  "Завтра я начну заниматься еще усерднее.","Осенью листья на деревьях становятся желтыми и красными.","Зимой снег покрывает поля тонким белым одеялом.",
+  "Летом мы купаемся в озере и жарим картошку на костре.","В библиотеке всегда тихо, и там приятно думать.","Мой брат работает инженером и строит большие мосты.",
+  "Сегодня я выучил несколько новых слов и очень этому рад.","Хорошая шутка поднимает настроение всей команде.","Самолет плавно набрал высоту и скрылся в облаках.",
+  "Поезд отправляется со второго пути ровно в полдень.","На рынке продают свежие овощи, фрукты и душистый мед.","Художник долго смотрел на картину и наконец улыбнулся.",
+  "Музыка помогает сосредоточиться и забыть об усталости.","Дорога к успеху начинается с первого шага.","Чтобы печатать быстро, не нужно смотреть на клавиатуру.",
+  "Держи спину прямо, а запястья на весу.","Каждый палец отвечает за свои клавиши.","Мягко нажимай на клавиши и не торопись.",
+  "Лучше печатать медленно и без ошибок, чем быстро и с ошибками.","Ритм важнее скорости, потому что скорость придет сама.","Среднему ряду нужно уделять особое внимание.",
+  "Сегодня отличный день, чтобы научиться новому.","Звезды ярко светят над тихим ночным городом.","Мальчик нашел в саду маленького ежика и принес его домой.",
+  "Бабушка печет пироги с капустой и яблоками.","Мы с друзьями ходили в кино на новый фильм.","Телефон зазвонил в самый неподходящий момент.",
+  "Ветер раскачивал ветки, и на землю падали шишки.","В комнате пахло свежим хлебом и кофе.","Спортсмены тренируются каждый день, чтобы стать лучше.",
+  "Учитель объяснил задачу так просто, что все сразу поняли.","Врач посоветовал больше гулять на свежем воздухе.","Фермер рано утром вышел в поле проверить урожай.",
+  "Электричество появилось в нашей деревне давно.","Эхо в пещере повторило каждое сказанное слово.","Этот экзамен я сдам, потому что хорошо подготовился.",
+  "Щенок радостно виляет хвостом и просит поиграть.","Цветы на окне поливают каждое утро.","Ящик с инструментами стоит в гараже на нижней полке.",
+  "Юноша мечтает стать капитаном и увидеть далекие страны.","Объявление о концерте повесили на дверях школы.","Подъезд нашего дома недавно покрасили в светлый цвет.",
+  "Съезд делегатов начнется в понедельник утром.","Фонарь освещает дорожку, по которой мы идем домой.","Шарик улетел высоко в небо, и малыш помахал ему рукой.",
+  "Чайка кричит над морем, а волны бьются о скалы.","Жираф дотянулся до самых верхних листьев на дереве.","Хозяйка накрыла стол и позвала всех к ужину.",
+  "Цирк приехал в город, и афиши появились на каждом углу.","Дождь закончился, и над полями появилась радуга.","Космонавт посмотрел в иллюминатор и увидел нашу планету.",
+  "Лодка тихо скользила по воде, оставляя за собой легкий след.","Мама попросила меня купить хлеб, молоко и немного сыра.",
+  "Новый телефон работает быстро, а батарея держит заряд целый день.","Мы договорились встретиться возле фонтана в центре города.",
+  "Горы покрыты снегом даже в самые жаркие дни лета.","Сначала подумай, а потом говори.","Маленькие победы каждый день приводят к большим результатам.",
+  "Спокойный темп и ровное дыхание помогают не делать ошибок.","Ошибки это не повод останавливаться, а повод стать внимательнее.",
+  "Тренировка по десять минут в день лучше, чем час раз в неделю.","Сильные руки печатают точно, когда они расслаблены.",
+  "Рассвет окрасил небо в нежные розовые и золотые цвета.","Старая яблоня во дворе каждый год дает много плодов.","Птицы вернулись с юга, и в роще стало шумно.",
+  "Тропинка вела через лес к небольшому озеру.","На берегу мы разожгли костер и пели песни.","Соседи подарили нам банку варенья из малины.",
+  "Дети строят замок из песка и украшают его ракушками.","Спасибо за помощь, без вас мы бы не справились.","Пожалуйста, закрой окно, потому что на улице холодно.",
+  "Здравствуйте, меня зовут Алексей, и я учусь печатать вслепую.","Добрый вечер, как прошел ваш день.","До встречи завтра в то же время.",
+  "Погода сегодня просто замечательная, и настроение отличное.","Я люблю читать книги про путешествия и приключения.",
+  "Чтобы стать мастером, нужно много терпения и желания.","Каждая буква на клавиатуре имеет свое место.",
+  "Хорошая привычка формируется за несколько недель регулярных занятий.","Тишина в лесу успокаивает лучше любых слов."
+];
+function makeSentences() {
+  const n = Number(settings.words) || 24, pool = [...sentenceBank].sort(() => Math.random() - 0.5), out = [];
+  let words = 0;
+  for (const s of pool) { out.push(s); words += s.split(" ").length; if (words >= n) break; }
+  return out.join(" ");
+}
 function makeText() {
+  if (settings.mode === "sentences") { weakActive = false; return makeSentences(); }
   const n = Number(settings.words) || 24, weak = settings.mode === "weak" ? weakLetters(4).map(w => w.ch) : [];
   weakActive = weak.length > 0;
   const weighted = [];
@@ -143,14 +189,16 @@ const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${Stri
 function updateStats() {
   const m = getMetrics();
   $("speedStat").textContent = m.speed;
+  $("speedSub").textContent = `симв./мин · ≈${Math.round(m.speed / 5)} слов/мин`;
   $("accuracyStat").textContent = m.accuracy + "%";
   $("errorsStat").textContent = m.errors;
   $("timeStat").textContent = formatTime(m.elapsed);
 }
+const dailyGoal = () => Math.max(25, Math.min(500, Math.round(Number(settings.dailyExercises)) || 25));
 function updateGoal() {
-  const goal = Number(settings.dailyGoal) || 1000, done = dayRecord().chars;
+  const goal = dailyGoal(), done = dayRecord().ex;
   $("goalStat").textContent = done;
-  $("goalOf").textContent = done >= goal ? "цель выполнена ✓" : `/ ${goal} симв.`;
+  $("goalOf").textContent = done >= goal ? "цель выполнена ✓" : `/ ${goal} упр.`;
   $("goalBar").style.width = Math.min(100, done / goal * 100) + "%";
   $("goalBar").parentElement.classList.toggle("done", done >= goal);
 }
@@ -160,7 +208,8 @@ function renderWeakStrip() {
   el.innerHTML = '<span class="muted-text">Проблемные буквы:</span>' + weak.map(w => `<span class="chip"><b>${w.ch}</b> ${Math.round(w.rate * 100)}%</span>`).join("");
 }
 function updateModeTitle() {
-  $("modeTitle").textContent = settings.mode === "weak" ? (weakActive ? "Проблемные буквы" : "Проблемные буквы (пока нет данных — обычный текст)") : "Случайный текст";
+  $("modeTitle").textContent = settings.mode === "sentences" ? "Предложения"
+    : settings.mode === "weak" ? (weakActive ? "Проблемные буквы" : "Проблемные буквы (пока нет данных — обычный текст)") : "Случайный текст";
   $("modeSelect").value = settings.mode;
 }
 
@@ -182,22 +231,82 @@ function streakDays() {
   while (data.days[d.toLocaleDateString("sv-SE")]?.ex > 0) { n++; d.setDate(d.getDate() - 1); }
   return n;
 }
+function bestGoalStreak() {
+  const keys = Object.keys(data.goalDays).sort();
+  let best = 0, run = 0, prev = null;
+  for (const k of keys) {
+    const t = new Date(k + "T00:00:00").getTime();
+    run = prev !== null && Math.round((t - prev) / 86400000) === 1 ? run + 1 : 1;
+    best = Math.max(best, run); prev = t;
+  }
+  return best;
+}
+const okCount = (ch) => { const s = data.chars[ch]; return s ? s.a - s.e : 0; };
+const sumOk = (letters) => [...letters].reduce((n, ch) => n + okCount(ch), 0);
+const masteredLetters = () => Object.entries(data.chars).filter(([ch, s]) => /[а-я]/.test(ch) && s.a >= 30 && s.e / s.a <= 0.03).length;
+const totalAttempts = () => Object.values(data.chars).reduce((n, s) => n + s.a, 0);
+const wpm = () => Math.round(data.totals.bestSpeed / 5);
+const T = () => data.totals;
 const ACHIEVEMENTS = [
-  {id: "first", icon: "🌱", title: "Первый шаг", desc: "Заверши первое упражнение", max: 1, cur: () => data.totals.exercises},
-  {id: "ten", icon: "🔟", title: "Разогрев", desc: "Заверши 10 упражнений", max: 10, cur: () => data.totals.exercises},
-  {id: "fifty", icon: "🏋️", title: "Постоянство", desc: "Заверши 50 упражнений", max: 50, cur: () => data.totals.exercises},
-  {id: "perfect", icon: "🎯", title: "Ни одной ошибки", desc: "Пройди упражнение со 100% точностью", max: 1, cur: () => data.totals.perfect},
-  {id: "speed100", icon: "⚡", title: "Скорость 100", desc: "Достигни 100 симв./мин", max: 100, cur: () => data.totals.bestSpeed},
-  {id: "speed200", icon: "🚀", title: "Скорость 200", desc: "Достигни 200 симв./мин", max: 200, cur: () => data.totals.bestSpeed},
-  {id: "speed300", icon: "🔥", title: "Скорость 300", desc: "Достигни 300 симв./мин", max: 300, cur: () => data.totals.bestSpeed},
-  {id: "chars1k", icon: "📝", title: "Тысяча знаков", desc: "Напечатай 1 000 символов", max: 1000, cur: () => data.totals.chars},
-  {id: "chars10k", icon: "📚", title: "Десять тысяч", desc: "Напечатай 10 000 символов", max: 10000, cur: () => data.totals.chars},
-  {id: "goal", icon: "✅", title: "Цель достигнута", desc: "Выполни цель на день", max: 1, cur: () => Object.keys(data.goalDays).length},
-  {id: "goal7", icon: "🏆", title: "Неделя целей", desc: "Выполни цель на день 7 раз", max: 7, cur: () => Object.keys(data.goalDays).length},
-  {id: "streak3", icon: "📅", title: "Три дня подряд", desc: "Тренируйся 3 дня подряд", max: 3, cur: streakDays},
-  {id: "streak7", icon: "🗓️", title: "Неделя подряд", desc: "Тренируйся 7 дней подряд", max: 7, cur: streakDays},
-  {id: "fixer", icon: "🛠️", title: "Работа над ошибками", desc: "Пройди упражнение на проблемные буквы с точностью от 95%", max: 1, cur: () => data.totals.fixer},
-  {id: "hour", icon: "⏱️", title: "Час практики", desc: "Суммарно потренируйся 1 час", max: 3600, cur: () => Math.round(data.totals.seconds)}
+  // Упражнения
+  {cat: "Упражнения", id: "first", icon: "🌱", title: "Первый шаг", desc: "Заверши первое упражнение", max: 1, cur: () => T().exercises},
+  {cat: "Упражнения", id: "ex10", icon: "🔟", title: "Разогрев", desc: "Заверши 10 упражнений", max: 10, cur: () => T().exercises},
+  {cat: "Упражнения", id: "ex25", icon: "🥉", title: "Четверть сотни", desc: "Заверши 25 упражнений", max: 25, cur: () => T().exercises},
+  {cat: "Упражнения", id: "ex100", icon: "💯", title: "Сотня", desc: "Заверши 100 упражнений", max: 100, cur: () => T().exercises},
+  {cat: "Упражнения", id: "ex250", icon: "🏋️", title: "Закалка", desc: "Заверши 250 упражнений", max: 250, cur: () => T().exercises},
+  {cat: "Упражнения", id: "ex500", icon: "🏛️", title: "Легенда клавиатуры", desc: "Заверши 500 упражнений", max: 500, cur: () => T().exercises},
+  // Скорость (слов в минуту)
+  {cat: "Скорость", id: "wpm20", icon: "🐢", title: "Уверенный старт", desc: "Достигни 20 слов в минуту", max: 20, cur: wpm},
+  {cat: "Скорость", id: "wpm30", icon: "🚶", title: "Бодрый шаг", desc: "Достигни 30 слов в минуту", max: 30, cur: wpm},
+  {cat: "Скорость", id: "wpm40", icon: "🏃", title: "Лёгкий бег", desc: "Достигни 40 слов в минуту", max: 40, cur: wpm},
+  {cat: "Скорость", id: "wpm50", icon: "⚡", title: "Полсотни", desc: "Достигни 50 слов в минуту", max: 50, cur: wpm},
+  {cat: "Скорость", id: "wpm60", icon: "🚀", title: "Реактивный", desc: "Достигни 60 слов в минуту", max: 60, cur: wpm},
+  {cat: "Скорость", id: "wpm80", icon: "🔥", title: "Скорость звука", desc: "Достигни 80 слов в минуту", max: 80, cur: wpm},
+  // Точность
+  {cat: "Точность", id: "acc95", icon: "🎯", title: "На прицеле", desc: "Заверши упражнение с точностью от 95%", max: 95, cur: () => T().bestAcc},
+  {cat: "Точность", id: "acc98", icon: "🏹", title: "Снайпер", desc: "Заверши упражнение с точностью от 98%", max: 98, cur: () => T().bestAcc},
+  {cat: "Точность", id: "perfect", icon: "💎", title: "Ни одной ошибки", desc: "Пройди упражнение со 100% точностью", max: 1, cur: () => T().perfect},
+  {cat: "Точность", id: "perfect3", icon: "🔗", title: "Тройная чистота", desc: "Пройди 3 упражнения подряд без единой ошибки", max: 3, cur: () => T().bestPerfectRun},
+  {cat: "Точность", id: "combo", icon: "⚔️", title: "Быстро и чисто", desc: "От 40 слов/мин и точность от 97% в одном упражнении", max: 1, cur: () => T().combo},
+  // Объём
+  {cat: "Объём", id: "chars1k", icon: "📝", title: "Тысяча знаков", desc: "Напечатай верно 1 000 символов", max: 1000, cur: () => T().chars},
+  {cat: "Объём", id: "chars5k", icon: "📄", title: "Пять тысяч", desc: "Напечатай верно 5 000 символов", max: 5000, cur: () => T().chars},
+  {cat: "Объём", id: "chars10k", icon: "📚", title: "Десять тысяч", desc: "Напечатай верно 10 000 символов", max: 10000, cur: () => T().chars},
+  {cat: "Объём", id: "chars50k", icon: "📖", title: "Роман в кармане", desc: "Напечатай верно 50 000 символов", max: 50000, cur: () => T().chars},
+  {cat: "Объём", id: "chars100k", icon: "🏔️", title: "Сто тысяч", desc: "Напечатай верно 100 000 символов", max: 100000, cur: () => T().chars},
+  // Время
+  {cat: "Время", id: "min10", icon: "⏳", title: "Десять минут", desc: "Суммарно потренируйся 10 минут", max: 600, cur: () => Math.round(T().seconds)},
+  {cat: "Время", id: "hour1", icon: "⏱️", title: "Час практики", desc: "Суммарно потренируйся 1 час", max: 3600, cur: () => Math.round(T().seconds)},
+  {cat: "Время", id: "hour5", icon: "🕰️", title: "Пять часов", desc: "Суммарно потренируйся 5 часов", max: 18000, cur: () => Math.round(T().seconds)},
+  {cat: "Время", id: "hour10", icon: "⌛", title: "Десять часов", desc: "Суммарно потренируйся 10 часов", max: 36000, cur: () => Math.round(T().seconds)},
+  // Серии и цели
+  {cat: "Серии и цели", id: "streak3", icon: "📅", title: "Три дня подряд", desc: "Тренируйся 3 дня подряд", max: 3, cur: streakDays},
+  {cat: "Серии и цели", id: "streak7", icon: "🗓️", title: "Неделя подряд", desc: "Тренируйся 7 дней подряд", max: 7, cur: streakDays},
+  {cat: "Серии и цели", id: "streak14", icon: "🌗", title: "Две недели подряд", desc: "Тренируйся 14 дней подряд", max: 14, cur: streakDays},
+  {cat: "Серии и цели", id: "streak30", icon: "🌕", title: "Месяц без пропусков", desc: "Тренируйся 30 дней подряд", max: 30, cur: streakDays},
+  {cat: "Серии и цели", id: "goal1", icon: "✅", title: "Цель достигнута", desc: "Выполни цель на день", max: 1, cur: () => Object.keys(data.goalDays).length},
+  {cat: "Серии и цели", id: "goal7", icon: "🏆", title: "Неделя целей", desc: "Выполни цель на день 7 раз", max: 7, cur: () => Object.keys(data.goalDays).length},
+  {cat: "Серии и цели", id: "goalrun3", icon: "🎖️", title: "Цели подряд", desc: "Выполни цель на день 3 дня подряд", max: 3, cur: bestGoalStreak},
+  // Режимы
+  {cat: "Режимы", id: "sent1", icon: "💬", title: "Целые фразы", desc: "Заверши упражнение в режиме «Предложения»", max: 1, cur: () => T().sentences},
+  {cat: "Режимы", id: "sent25", icon: "✍️", title: "Писатель", desc: "Заверши 25 упражнений в режиме «Предложения»", max: 25, cur: () => T().sentences},
+  {cat: "Режимы", id: "weak1", icon: "🔍", title: "Взгляд на слабости", desc: "Заверши упражнение на проблемные буквы", max: 1, cur: () => T().weakEx},
+  {cat: "Режимы", id: "weak10", icon: "🧗", title: "Упорство", desc: "Заверши 10 упражнений на проблемные буквы", max: 10, cur: () => T().weakEx},
+  {cat: "Режимы", id: "fixer", icon: "🛠️", title: "Работа над ошибками", desc: "Пройди упражнение на проблемные буквы с точностью от 95%", max: 1, cur: () => T().fixer},
+  // Буквы
+  {cat: "Буквы", id: "alphabet", icon: "🔤", title: "Весь алфавит", desc: "Верно напечатай каждую из 32 букв (без Ё)", max: 32, cur: () => [..."абвгдежзийклмнопрстуфхцчшщъыьэюя"].filter(c => okCount(c) >= 1).length},
+  {cat: "Буквы", id: "master5", icon: "⭐", title: "Пять отличников", desc: "Освой 5 букв: от 30 нажатий и не более 3% ошибок", max: 5, cur: masteredLetters},
+  {cat: "Буквы", id: "master15", icon: "🌟", title: "Пятнадцать отличников", desc: "Освой 15 букв: от 30 нажатий и не более 3% ошибок", max: 15, cur: masteredLetters},
+  {cat: "Буквы", id: "rowHome", icon: "🏠", title: "Домашний ряд", desc: "Верно напечатай 500 букв среднего ряда (ФЫВАПРОЛДЖЭ)", max: 500, cur: () => sumOk("фывапролджэ")},
+  {cat: "Буквы", id: "rowTop", icon: "🗼", title: "Верхний этаж", desc: "Верно напечатай 300 букв верхнего ряда (ЙЦУКЕНГШЩЗХЪ)", max: 300, cur: () => sumOk("йцукенгшщзхъ")},
+  {cat: "Буквы", id: "rowBottom", icon: "⚓", title: "Нижний ряд", desc: "Верно напечатай 300 букв нижнего ряда (ЯЧСМИТЬБЮ)", max: 300, cur: () => sumOk("ячсмитьбю")},
+  {cat: "Буквы", id: "rare", icon: "💠", title: "Редкие буквы", desc: "Напечатай верно по 5 раз каждую из букв Ъ, Ф, Щ, Э, Ц", max: 5, cur: () => [..."ъфщэц"].filter(c => okCount(c) >= 5).length},
+  {cat: "Буквы", id: "clean", icon: "🧼", title: "Чистый лист", desc: "Набери 300 нажатий, и чтобы проблемных букв не осталось", max: 1, cur: () => totalAttempts() >= 300 && weakLetters().length === 0 ? 1 : 0},
+  // Привычки
+  {cat: "Привычки", id: "early", icon: "🌅", title: "Ранняя пташка", desc: "Заверши упражнение до 8 утра", max: 1, cur: () => T().early},
+  {cat: "Привычки", id: "owl", icon: "🦉", title: "Ночная сова", desc: "Заверши упражнение после 23:00 или до 5 утра", max: 1, cur: () => T().owl},
+  {cat: "Привычки", id: "busy", icon: "🔋", title: "Насыщенный день", desc: "Заверши 10 упражнений за один день", max: 10, cur: () => T().maxDayEx},
+  {cat: "Привычки", id: "records", icon: "📈", title: "Рекордсмен", desc: "Побей свой рекорд скорости 5 раз", max: 5, cur: () => T().records}
 ];
 function toast(text) {
   const el = document.createElement("div");
@@ -215,10 +324,15 @@ function checkAchievements() {
 function renderAchievements() {
   const got = ACHIEVEMENTS.filter(a => data.ach[a.id]).length;
   $("achSummary").textContent = `Открыто ${got} из ${ACHIEVEMENTS.length}`;
-  $("achGrid").innerHTML = ACHIEVEMENTS.map(a => {
+  const card = (a) => {
     const ok = !!data.ach[a.id], cur = Math.min(a.cur(), a.max);
     return `<article class="ach ${ok ? "unlocked" : "locked"}"><div class="ach-icon">${a.icon}</div><div class="ach-body"><h3>${a.title}</h3><p>${a.desc}</p>` +
-      `<div class="ach-bar"><div style="width:${Math.round(cur / a.max * 100)}%"></div></div><small>${ok ? "Получено" : `${cur} / ${a.max}`}</small></div></article>`;
+      `<div class="ach-bar"><div style="width:${Math.round(cur / a.max * 100)}%"></div></div><small>${ok ? "Получено" : `${cur.toLocaleString("ru-RU")} / ${a.max.toLocaleString("ru-RU")}`}</small></div></article>`;
+  };
+  const cats = [...new Set(ACHIEVEMENTS.map(a => a.cat))];
+  $("achGrid").innerHTML = cats.map(c => {
+    const list = ACHIEVEMENTS.filter(a => a.cat === c);
+    return `<h2 class="ach-cat">${c} <span>${list.filter(a => data.ach[a.id]).length}/${list.length}</span></h2><div class="ach-row">${list.map(card).join("")}</div>`;
   }).join("");
 }
 
@@ -229,15 +343,15 @@ function renderStats() {
   for (const s of Object.values(data.chars)) { a += s.a; e += s.e; }
   const mins = Math.floor(t.seconds / 60);
   const cards = [["УПРАЖНЕНИЙ", t.exercises, "завершено"], ["СИМВОЛОВ", t.chars, "напечатано верно"], ["ВРЕМЯ", mins >= 60 ? `${Math.floor(mins / 60)}ч ${mins % 60}м` : `${mins} мин`, "в тренировках"],
-    ["РЕКОРД", t.bestSpeed, "симв./мин"], ["ТОЧНОСТЬ", a ? Math.round((a - e) / a * 100) + "%" : "—", "за всё время"], ["СЕРИЯ", streakDays(), "дней подряд"]];
+    ["РЕКОРД", Math.round(t.bestSpeed / 5), "слов/мин"], ["ТОЧНОСТЬ", a ? Math.round((a - e) / a * 100) + "%" : "—", "за всё время"], ["СЕРИЯ", streakDays(), "дней подряд"]];
   $("totalsGrid").innerHTML = cards.map(([l, v, s]) => `<article class="stat-card"><span class="stat-label">${l}</span><strong>${v}</strong><small>${s}</small></article>`).join("");
   const rowsData = Object.entries(data.chars).filter(([ch, s]) => ch !== " " && s.a >= 3 && s.e > 0).map(([ch, s]) => ({ch, a: s.a, e: s.e, rate: s.e / s.a})).sort((x, y) => y.rate - x.rate).slice(0, 10);
   $("weakList").innerHTML = rowsData.length ? rowsData.map(r => `<div class="weak-row"><span class="weak-letter">${r.ch}</span><div class="weak-bar"><div style="width:${Math.min(100, Math.round(r.rate * 100) * 2)}%"></div></div><span class="weak-num">${Math.round(r.rate * 100)}% · ${r.e} из ${r.a}</span></div>`).join("")
     : '<p class="muted-text">Пока нет ошибок для анализа. Потренируйся, и здесь появятся буквы, которые стоит подтянуть.</p>';
   const days = [];
   for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); days.push({k: d.toLocaleDateString("sv-SE"), l: d.toLocaleDateString("ru-RU", {weekday: "short"})}); }
-  const max = Math.max(1, Number(settings.dailyGoal) || 1000, ...days.map(d => data.days[d.k]?.chars || 0));
-  $("weekChart").innerHTML = days.map(d => { const c = data.days[d.k]?.chars || 0; return `<div class="wk"><div class="wk-bar ${data.goalDays[d.k] ? "goal" : ""}" style="height:${Math.max(3, Math.round(c / max * 100))}%" title="${c} симв."></div><span>${d.l}</span><small>${c}</small></div>`; }).join("");
+  const max = Math.max(1, dailyGoal(), ...days.map(d => data.days[d.k]?.ex || 0));
+  $("weekChart").innerHTML = days.map(d => { const c = data.days[d.k]?.ex || 0; return `<div class="wk"><div class="wk-bar ${data.goalDays[d.k] ? "goal" : ""}" style="height:${Math.max(3, Math.round(c / max * 100))}%" title="${c} упр."></div><span>${d.l}</span><small>${c}</small></div>`; }).join("");
 }
 
 // ===== Ход упражнения =====
@@ -245,17 +359,26 @@ function finish() {
   if (finished) return;
   finished = true;
   clearInterval(timerId);
-  const m = getMetrics(), t = data.totals;
-  t.exercises++; t.seconds += m.elapsed; t.bestSpeed = Math.max(t.bestSpeed, m.speed);
-  if (ms === 0) t.perfect++;
-  if (weakActive && m.accuracy >= 95) t.fixer++;
-  dayRecord().ex++;
-  saveData(); unsaved = 0;
+  const m = getMetrics(), t = data.totals, now = new Date(), prevBest = t.bestSpeed;
+  t.exercises++; t.seconds += m.elapsed;
+  if (m.speed > t.bestSpeed) { if (prevBest > 0) t.records++; t.bestSpeed = m.speed; }
+  t.bestAcc = Math.max(t.bestAcc, m.accuracy);
+  if (ms === 0) { t.perfect++; t.perfectRun++; t.bestPerfectRun = Math.max(t.bestPerfectRun, t.perfectRun); } else t.perfectRun = 0;
+  if (m.speed / 5 >= 40 && m.accuracy >= 97) t.combo = 1;
+  if (exMode === "sentences") t.sentences++;
+  if (exMode === "weak") { t.weakEx++; if (m.accuracy >= 95) t.fixer++; }
+  if (now.getHours() < 8) t.early = 1;
+  if (now.getHours() >= 23 || now.getHours() < 5) t.owl = 1;
+  const rec = dayRecord(), goal = dailyGoal();
+  rec.ex++; t.maxDayEx = Math.max(t.maxDayEx, rec.ex);
+  if (rec.ex === goal) { data.goalDays[todayKey()] = true; toast("🎉 Цель на день выполнена!"); }
+  saveData(); unsaved = 0; updateGoal();
   const fresh = checkAchievements();
   $("finalSpeed").textContent = m.speed; $("finalAccuracy").textContent = m.accuracy + "%";
   $("finalTime").textContent = formatTime(m.elapsed); $("finalErrors").textContent = m.errors;
-  const goal = Number(settings.dailyGoal) || 1000, done = dayRecord().chars, weak = weakLetters(3);
-  let extra = `<p>Цель на день: <b>${Math.min(done, goal)} / ${goal}</b> символов${done >= goal ? " — выполнена ✓" : ""}</p>`;
+  const weak = weakLetters(3);
+  let extra = `<p>Скорость: <b>≈${Math.round(m.speed / 5)} слов/мин</b> · рекорд <b>${Math.round(t.bestSpeed / 5)}</b></p>`;
+  extra += `<p>Цель на день: <b>${Math.min(rec.ex, goal)} / ${goal}</b> упражнений${rec.ex >= goal ? " — выполнена ✓" : ""}</p>`;
   if (weak.length) extra += `<p>Проблемные буквы: ${weak.map(w => `<b>${w.ch}</b> (${Math.round(w.rate * 100)}%)`).join(", ")}</p>`;
   if (fresh.length) extra += `<p class="ach-line">${fresh.map(a => `${a.icon} ${a.title}`).join(" · ")}</p>`;
   $("resultExtra").innerHTML = extra;
@@ -267,6 +390,7 @@ function restart() {
   clearInterval(timerId);
   timerId = null; startedAt = null; finished = false; typed = ""; ks = 0; ms = 0;
   target = makeText();
+  exMode = settings.mode === "sentences" ? "sentences" : weakActive ? "weak" : "normal";
   modal.classList.add("hidden");
   $("hintText").textContent = "Нажми любую клавишу, чтобы начать";
   renderPrompt(); updateStats(); updateGoal(); updateModeTitle(); renderWeakStrip(); markWeakKeys(); highlightNext();
@@ -274,10 +398,11 @@ function restart() {
 }
 function resolveChar(e) {
   if (e.key.length !== 1) return null;
-  let ch = e.key.toLowerCase();
-  // Если включена латинская раскладка, берём русскую букву по положению клавиши.
-  if (/[a-z]/.test(ch) && codeToChar[e.code]) ch = codeToChar[e.code];
-  return ch;
+  const k = e.key.toLowerCase();
+  if (/[а-яё0-9 ]/.test(k)) return k;
+  if (e.code === "Slash" && (k === "." || k === ",")) return k;     // русская раскладка: «.» и «,»
+  if (codeToChar[e.code]) return codeToChar[e.code];                  // латинская раскладка: берём букву по положению клавиши
+  return k;
 }
 function handleTyping(e) {
   if (e.key === "Backspace") { if (typed.length) { typed = typed.slice(0, -1); renderPrompt(); highlightNext(); } return; }
@@ -288,21 +413,15 @@ function handleTyping(e) {
     timerId = setInterval(updateStats, 250);
     $("hintText").textContent = "Отлично! Продолжай в своём темпе";
   }
-  const expected = target[typed.length], ok = ch === expected;
-  const st = data.chars[expected] || (data.chars[expected] = {a: 0, e: 0});
+  const expected = target[typed.length], low = expected.toLowerCase(), ok = ch === low;   // заглавные принимаются и без Shift
+  const st = data.chars[low] || (data.chars[low] = {a: 0, e: 0});
   st.a++; ks++;
-  if (ok) {
-    data.totals.chars++;
-    const rec = dayRecord(), goal = Number(settings.dailyGoal) || 1000;
-    rec.chars++;
-    if (rec.chars === goal) { data.goalDays[todayKey()] = true; toast("🎉 Цель на день выполнена!"); checkAchievements(); }
-    updateGoal();
-  } else { st.e++; ms++; }
+  if (ok) { data.totals.chars++; dayRecord().chars++; } else { st.e++; ms++; }
   if (settings.soundKey && ok) beep(900, 0.04, 0.05);
   if (settings.soundErr && !ok) beep(160, 0.12, 0.08);
   flashKey(keyForChar(ch), ok ? "pressed" : "error");
   if (ok) tapHands();
-  typed += ch;
+  typed += ok ? expected : ch;
   if (++unsaved >= 25) { saveData(); unsaved = 0; }
   renderPrompt(); updateStats(); highlightNext();
   if (typed.length >= target.length) finish();
@@ -335,6 +454,18 @@ function bindSettings() {
   document.querySelectorAll("[data-setting]").forEach(el => {
     const key = el.dataset.setting;
     if (el.type === "checkbox") el.checked = !!settings[key]; else el.value = settings[key];
+    if (el.type === "number") {
+      const min = Number(el.min), max = Number(el.max);
+      el.addEventListener("input", () => {          // применяем сразу, как только введено допустимое число
+        const v = Number(el.value);
+        if (Number.isInteger(v) && v >= min && v <= max) { settings[key] = v; saveSettings(); applySettings(); }
+      });
+      el.addEventListener("change", () => {          // при уходе из поля исправляем недопустимое значение
+        const v = Math.min(max, Math.max(min, Math.round(Number(el.value)) || min));
+        el.value = v; settings[key] = v; saveSettings(); applySettings();
+      });
+      return;
+    }
     el.addEventListener("input", () => {
       const prev = settings[key];
       settings[key] = el.type === "checkbox" ? el.checked : el.type === "range" ? Number(el.value) : (isNaN(Number(el.value)) ? el.value : Number(el.value));
@@ -484,7 +615,7 @@ function setActiveFinger(ch) {
   const label = document.getElementById("fingerName");
   if (!label) return;
   if (!activeFinger) { label.textContent = "Подсказка следующей клавиши"; return; }
-  const shown = activeChar === " " ? "Пробел" : "«" + activeChar + "»";
+  const shown = (activeChar === " " ? "Пробел" : "«" + activeChar + "»") + (ch !== ch.toLowerCase() ? " + Shift" : "");
   label.textContent = `${shown} — ${FINGERS[activeFinger].name}`;
 }
 function tapHands() { tapUntil = performance.now() + 150; }
