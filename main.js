@@ -10,6 +10,7 @@ function createWindow() {
     show: false,
     backgroundColor: "#17191f",
     title: "Swift Nimble Exact Input System",
+    icon: path.join(__dirname, "build", "icon.png"),
     autoHideMenuBar: true,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",   // на Mac остаются родные кнопки слева
     titleBarOverlay: false,

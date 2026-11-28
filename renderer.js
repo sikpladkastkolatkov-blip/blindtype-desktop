@@ -188,8 +188,8 @@ function getMetrics() {
 const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s) % 60).padStart(2, "0")}`;
 function updateStats() {
   const m = getMetrics();
-  $("speedStat").textContent = m.speed;
-  $("speedSub").textContent = `симв./мин · ≈${Math.round(m.speed / 5)} слов/мин`;
+  $("speedStat").textContent = Math.round(m.speed / 5);
+  $("speedSub").textContent = "слов в минуту";
   $("accuracyStat").textContent = m.accuracy + "%";
   $("errorsStat").textContent = m.errors;
   $("timeStat").textContent = formatTime(m.elapsed);
@@ -227,10 +227,31 @@ function beep(freq, dur, vol) {
 // ===== Достижения =====
 function streakDays() {
   let n = 0; const d = new Date();
-  if (!(data.days[d.toLocaleDateString("sv-SE")]?.ex > 0)) d.setDate(d.getDate() - 1);
-  while (data.days[d.toLocaleDateString("sv-SE")]?.ex > 0) { n++; d.setDate(d.getDate() - 1); }
+  if (!data.goalDays[d.toLocaleDateString("sv-SE")]) d.setDate(d.getDate() - 1);
+  while (data.goalDays[d.toLocaleDateString("sv-SE")]) { n++; d.setDate(d.getDate() - 1); }
   return n;
 }
+const plural = (n, a, b, c) => { const m = n % 100, k = n % 10; return m > 10 && m < 20 ? c : k === 1 ? a : k >= 2 && k <= 4 ? b : c; };
+function renderStreak() {
+  const n = streakDays(), done = !!data.goalDays[todayKey()];
+  $("streakNum").textContent = n;
+  $("streakSub").textContent = done ? plural(n, "день в ударе", "дня в ударе", "дней в ударе") : `сегодня ${Math.min(dayRecord().ex, dailyGoal())} / ${dailyGoal()} упр.`;
+  $("streakBadge").classList.toggle("lit", done);
+}
+function showStreakCelebration() {
+  const n = streakDays();
+  $("soNum").textContent = n;
+  $("soLabel").textContent = plural(n, "день в ударе", "дня в ударе", "дней в ударе");
+  $("soSub").textContent = n === 1 ? "Огонёк зажжён! Возвращайся завтра, чтобы не дать ему погаснуть." : "Цель на день выполнена. Приходи завтра и продолжай серию!";
+  const days = [];
+  for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); days.push({k: d.toLocaleDateString("sv-SE"), l: d.toLocaleDateString("ru-RU", {weekday: "short"})}); }
+  $("soWeek").innerHTML = days.map(d => `<span class="${data.goalDays[d.k] ? "on" : ""}"><i>${data.goalDays[d.k] ? "✓" : ""}</i>${d.l}</span>`).join("");
+  const sp = $("streakOverlay").querySelector(".so-spark");
+  sp.innerHTML = Array.from({length: 26}, (_, i) => `<i style="left:${Math.round(Math.random() * 100)}%;animation-delay:${(Math.random() * 2.4).toFixed(2)}s;animation-duration:${(3 + Math.random() * 2.5).toFixed(2)}s;--s:${(6 + Math.random() * 10).toFixed(0)}px"></i>`).join("");
+  $("streakOverlay").classList.remove("hidden");
+  $("soBtn").focus();
+}
+function closeStreak() { $("streakOverlay").classList.add("hidden"); if (!modal.classList.contains("hidden")) $("againBtn").focus(); }
 function bestGoalStreak() {
   const keys = Object.keys(data.goalDays).sort();
   let best = 0, run = 0, prev = null;
@@ -247,6 +268,7 @@ const masteredLetters = () => Object.entries(data.chars).filter(([ch, s]) => /[�
 const totalAttempts = () => Object.values(data.chars).reduce((n, s) => n + s.a, 0);
 const wpm = () => Math.round(data.totals.bestSpeed / 5);
 const T = () => data.totals;
+const words = () => Math.floor(T().chars / 5);
 const ACHIEVEMENTS = [
   // Упражнения
   {cat: "Упражнения", id: "first", icon: "🌱", title: "Первый шаг", desc: "Заверши первое упражнение", max: 1, cur: () => T().exercises},
@@ -269,24 +291,24 @@ const ACHIEVEMENTS = [
   {cat: "Точность", id: "perfect3", icon: "🔗", title: "Тройная чистота", desc: "Пройди 3 упражнения подряд без единой ошибки", max: 3, cur: () => T().bestPerfectRun},
   {cat: "Точность", id: "combo", icon: "⚔️", title: "Быстро и чисто", desc: "От 40 слов/мин и точность от 97% в одном упражнении", max: 1, cur: () => T().combo},
   // Объём
-  {cat: "Объём", id: "chars1k", icon: "📝", title: "Тысяча знаков", desc: "Напечатай верно 1 000 символов", max: 1000, cur: () => T().chars},
-  {cat: "Объём", id: "chars5k", icon: "📄", title: "Пять тысяч", desc: "Напечатай верно 5 000 символов", max: 5000, cur: () => T().chars},
-  {cat: "Объём", id: "chars10k", icon: "📚", title: "Десять тысяч", desc: "Напечатай верно 10 000 символов", max: 10000, cur: () => T().chars},
-  {cat: "Объём", id: "chars50k", icon: "📖", title: "Роман в кармане", desc: "Напечатай верно 50 000 символов", max: 50000, cur: () => T().chars},
-  {cat: "Объём", id: "chars100k", icon: "🏔️", title: "Сто тысяч", desc: "Напечатай верно 100 000 символов", max: 100000, cur: () => T().chars},
+  {cat: "Объём", id: "chars1k", icon: "📝", title: "Двести слов", desc: "Напечатай верно 200 слов", max: 200, cur: words},
+  {cat: "Объём", id: "chars5k", icon: "📄", title: "Тысяча слов", desc: "Напечатай верно 1 000 слов", max: 1000, cur: words},
+  {cat: "Объём", id: "chars10k", icon: "📚", title: "Две тысячи слов", desc: "Напечатай верно 2 000 слов", max: 2000, cur: words},
+  {cat: "Объём", id: "chars50k", icon: "📖", title: "Роман в кармане", desc: "Напечатай верно 10 000 слов", max: 10000, cur: words},
+  {cat: "Объём", id: "chars100k", icon: "🏔️", title: "Двадцать тысяч слов", desc: "Напечатай верно 20 000 слов", max: 20000, cur: words},
   // Время
   {cat: "Время", id: "min10", icon: "⏳", title: "Десять минут", desc: "Суммарно потренируйся 10 минут", max: 600, cur: () => Math.round(T().seconds)},
   {cat: "Время", id: "hour1", icon: "⏱️", title: "Час практики", desc: "Суммарно потренируйся 1 час", max: 3600, cur: () => Math.round(T().seconds)},
   {cat: "Время", id: "hour5", icon: "🕰️", title: "Пять часов", desc: "Суммарно потренируйся 5 часов", max: 18000, cur: () => Math.round(T().seconds)},
   {cat: "Время", id: "hour10", icon: "⌛", title: "Десять часов", desc: "Суммарно потренируйся 10 часов", max: 36000, cur: () => Math.round(T().seconds)},
   // Серии и цели
-  {cat: "Серии и цели", id: "streak3", icon: "📅", title: "Три дня подряд", desc: "Тренируйся 3 дня подряд", max: 3, cur: streakDays},
-  {cat: "Серии и цели", id: "streak7", icon: "🗓️", title: "Неделя подряд", desc: "Тренируйся 7 дней подряд", max: 7, cur: streakDays},
-  {cat: "Серии и цели", id: "streak14", icon: "🌗", title: "Две недели подряд", desc: "Тренируйся 14 дней подряд", max: 14, cur: streakDays},
-  {cat: "Серии и цели", id: "streak30", icon: "🌕", title: "Месяц без пропусков", desc: "Тренируйся 30 дней подряд", max: 30, cur: streakDays},
+  {cat: "Серии и цели", id: "streak3", icon: "📅", title: "Три дня подряд", desc: "Серия из 3 дня подряд с выполненной целью", max: 3, cur: streakDays},
+  {cat: "Серии и цели", id: "streak7", icon: "🗓️", title: "Неделя подряд", desc: "Серия из 7 дней подряд с выполненной целью", max: 7, cur: streakDays},
+  {cat: "Серии и цели", id: "streak14", icon: "🌗", title: "Две недели подряд", desc: "Серия из 14 дней подряд с выполненной целью", max: 14, cur: streakDays},
+  {cat: "Серии и цели", id: "streak30", icon: "🌕", title: "Месяц без пропусков", desc: "Серия из 30 дней подряд с выполненной целью", max: 30, cur: streakDays},
   {cat: "Серии и цели", id: "goal1", icon: "✅", title: "Цель достигнута", desc: "Выполни цель на день", max: 1, cur: () => Object.keys(data.goalDays).length},
   {cat: "Серии и цели", id: "goal7", icon: "🏆", title: "Неделя целей", desc: "Выполни цель на день 7 раз", max: 7, cur: () => Object.keys(data.goalDays).length},
-  {cat: "Серии и цели", id: "goalrun3", icon: "🎖️", title: "Цели подряд", desc: "Выполни цель на день 3 дня подряд", max: 3, cur: bestGoalStreak},
+  {cat: "Серии и цели", id: "goal14", icon: "🎖️", title: "Две недели целей", desc: "Выполни цель на день 14 раз", max: 14, cur: () => Object.keys(data.goalDays).length},
   // Режимы
   {cat: "Режимы", id: "sent1", icon: "💬", title: "Целые фразы", desc: "Заверши упражнение в режиме «Предложения»", max: 1, cur: () => T().sentences},
   {cat: "Режимы", id: "sent25", icon: "✍️", title: "Писатель", desc: "Заверши 25 упражнений в режиме «Предложения»", max: 25, cur: () => T().sentences},
@@ -342,8 +364,8 @@ function renderStats() {
   let a = 0, e = 0;
   for (const s of Object.values(data.chars)) { a += s.a; e += s.e; }
   const mins = Math.floor(t.seconds / 60);
-  const cards = [["УПРАЖНЕНИЙ", t.exercises, "завершено"], ["СИМВОЛОВ", t.chars, "напечатано верно"], ["ВРЕМЯ", mins >= 60 ? `${Math.floor(mins / 60)}ч ${mins % 60}м` : `${mins} мин`, "в тренировках"],
-    ["РЕКОРД", Math.round(t.bestSpeed / 5), "слов/мин"], ["ТОЧНОСТЬ", a ? Math.round((a - e) / a * 100) + "%" : "—", "за всё время"], ["СЕРИЯ", streakDays(), "дней подряд"]];
+  const cards = [["УПРАЖНЕНИЙ", t.exercises, "завершено"], ["СЛОВ", Math.floor(t.chars / 5).toLocaleString("ru-RU"), "напечатано верно"], ["ВРЕМЯ", mins >= 60 ? `${Math.floor(mins / 60)}ч ${mins % 60}м` : `${mins} мин`, "в тренировках"],
+    ["РЕКОРД", Math.round(t.bestSpeed / 5), "слов/мин"], ["ТОЧНОСТЬ", a ? Math.round((a - e) / a * 100) + "%" : "—", "за всё время"], ["СЕРИЯ", "🔥 " + streakDays(), "дней подряд с целью"]];
   $("totalsGrid").innerHTML = cards.map(([l, v, s]) => `<article class="stat-card"><span class="stat-label">${l}</span><strong>${v}</strong><small>${s}</small></article>`).join("");
   const rowsData = Object.entries(data.chars).filter(([ch, s]) => ch !== " " && s.a >= 3 && s.e > 0).map(([ch, s]) => ({ch, a: s.a, e: s.e, rate: s.e / s.a})).sort((x, y) => y.rate - x.rate).slice(0, 10);
   $("weakList").innerHTML = rowsData.length ? rowsData.map(r => `<div class="weak-row"><span class="weak-letter">${r.ch}</span><div class="weak-bar"><div style="width:${Math.min(100, Math.round(r.rate * 100) * 2)}%"></div></div><span class="weak-num">${Math.round(r.rate * 100)}% · ${r.e} из ${r.a}</span></div>`).join("")
@@ -371,20 +393,22 @@ function finish() {
   if (now.getHours() >= 23 || now.getHours() < 5) t.owl = 1;
   const rec = dayRecord(), goal = dailyGoal();
   rec.ex++; t.maxDayEx = Math.max(t.maxDayEx, rec.ex);
-  if (rec.ex === goal) { data.goalDays[todayKey()] = true; toast("🎉 Цель на день выполнена!"); }
+  let celebrate = false;
+  if (rec.ex === goal) { data.goalDays[todayKey()] = true; celebrate = true; }
   saveData(); unsaved = 0; updateGoal();
   const fresh = checkAchievements();
-  $("finalSpeed").textContent = m.speed; $("finalAccuracy").textContent = m.accuracy + "%";
+  $("finalSpeed").textContent = Math.round(m.speed / 5); $("finalAccuracy").textContent = m.accuracy + "%";
   $("finalTime").textContent = formatTime(m.elapsed); $("finalErrors").textContent = m.errors;
   const weak = weakLetters(3);
-  let extra = `<p>Скорость: <b>≈${Math.round(m.speed / 5)} слов/мин</b> · рекорд <b>${Math.round(t.bestSpeed / 5)}</b></p>`;
+  let extra = `<p>Рекорд скорости: <b>${Math.round(t.bestSpeed / 5)} слов/мин</b></p>`;
   extra += `<p>Цель на день: <b>${Math.min(rec.ex, goal)} / ${goal}</b> упражнений${rec.ex >= goal ? " — выполнена ✓" : ""}</p>`;
   if (weak.length) extra += `<p>Проблемные буквы: ${weak.map(w => `<b>${w.ch}</b> (${Math.round(w.rate * 100)}%)`).join(", ")}</p>`;
-  if (fresh.length) extra += `<p class="ach-line">${fresh.map(a => `${a.icon} ${a.title}`).join(" · ")}</p>`;
+  if (fresh.length) extra += `<div class="ach-new"><span>Новые достижения:</span>${fresh.map(a => `<button type="button" class="ach-chip" tabindex="0">${a.icon} ${a.title}<em class="tip"><b>${a.title}</b>${a.desc}</em></button>`).join("")}</div>`;
   $("resultExtra").innerHTML = extra;
   modal.classList.remove("hidden");
   $("againBtn").focus();
-  markWeakKeys(); renderWeakStrip();
+  markWeakKeys(); renderWeakStrip(); renderStreak();
+  if (celebrate) showStreakCelebration();
 }
 function restart() {
   clearInterval(timerId);
@@ -393,7 +417,7 @@ function restart() {
   exMode = settings.mode === "sentences" ? "sentences" : weakActive ? "weak" : "normal";
   modal.classList.add("hidden");
   $("hintText").textContent = "Нажми любую клавишу, чтобы начать";
-  renderPrompt(); updateStats(); updateGoal(); updateModeTitle(); renderWeakStrip(); markWeakKeys(); highlightNext();
+  renderPrompt(); updateStats(); updateGoal(); renderStreak(); updateModeTitle(); renderWeakStrip(); markWeakKeys(); highlightNext();
   if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
 }
 function resolveChar(e) {
@@ -478,6 +502,7 @@ function bindSettings() {
 // ===== Обработчики =====
 window.addEventListener("keydown", (e) => {
   if (e.key === "F11") { e.preventDefault(); window.desktop?.toggleFullscreen?.(); return; }
+  if (!$("streakOverlay").classList.contains("hidden")) { if (e.key === "Enter" || e.key === "Escape" || e.key === " ") { e.preventDefault(); closeStreak(); } return; }
   if (!modal.classList.contains("hidden")) { if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); restart(); } return; }
   if (currentView !== "train") return;
   if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
@@ -491,12 +516,13 @@ document.addEventListener("click", (e) => { e.target.closest?.("button")?.blur()
 document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => showView(t.dataset.view)));
 $("restartBtn").addEventListener("click", restart);
 $("againBtn").addEventListener("click", restart);
+$("soBtn").addEventListener("click", closeStreak);
 $("modeSelect").addEventListener("change", (e) => { settings.mode = e.target.value; saveSettings(); restart(); });
 $("trainWeakBtn").addEventListener("click", () => { settings.mode = "weak"; saveSettings(); showView("train"); restart(); });
 $("fullscreenBtn").addEventListener("click", () => window.desktop?.toggleFullscreen?.());
 $("resetBtn").addEventListener("click", () => {
   if (!confirm("Удалить всю статистику, достижения и прогресс дня? Это нельзя отменить.")) return;
-  data = defaultData(); saveData(); restart(); renderStats(); renderAchievements(); toast("Прогресс сброшен");
+  data = defaultData(); saveData(); restart(); renderStats(); renderAchievements(); renderStreak(); toast("Прогресс сброшен");
 });
 $("minimizeBtn").addEventListener("click", () => window.desktop?.minimize());
 $("maximizeBtn").addEventListener("click", () => window.desktop?.toggleMaximize());
@@ -543,8 +569,11 @@ function buildHands() {
   for (const s of ["l", "r"]) {
     const g = mk("g", {}, handsSvg);
     side[s].tissue = mk("g", {}, g);                       // мягкие ткани (подложка)
-    side[s].palm = mk("ellipse", {}, side[s].tissue);
-    side[s].wrist = mk("rect", {rx: 40}, side[s].tissue);
+    side[s].edges = mk("g", {class: "hand-edge"}, side[s].tissue);   // контур кисти
+    side[s].fills = mk("g", {class: "hand-fill"}, side[s].tissue);   // серая «плоть»
+    side[s].palmE = mk("ellipse", {}, side[s].edges); side[s].wristE = mk("rect", {rx: 42}, side[s].edges);
+    side[s].palm = mk("ellipse", {}, side[s].fills);
+    side[s].wrist = mk("rect", {rx: 40}, side[s].fills);
     side[s].carpal = mk("g", {}, g);                       // запястье
     side[s].carpals = [[-30,0],[-10,-6],[12,-6],[32,0],[-22,24],[0,22],[22,24]].map(([x, y]) => mk("ellipse", {rx: 12, ry: 10, cx: x, cy: y}, side[s].carpal));
     side[s].forearm = [-24, 6].map(x => mk("rect", {x, y: 50, width: 18, height: 260, rx: 9}, side[s].carpal));
@@ -556,7 +585,10 @@ function buildHands() {
     const g = side[id[0]].layer;
     hand[id] = {
       x: 0, y: 0, ready: false,
-      flesh: mk("line", {"stroke-linecap": "round", "stroke-width": f.fw}, side[id[0]].tissue),
+      medge: mk("line", {"stroke-linecap": "round", "stroke-width": f.fw + 17}, side[id[0]].edges),
+      edge: mk("line", {"stroke-linecap": "round", "stroke-width": f.fw + 5}, side[id[0]].edges),
+      mflesh: mk("line", {"stroke-linecap": "round", "stroke-width": f.fw + 12}, side[id[0]].fills),
+      flesh: mk("line", {"stroke-linecap": "round", "stroke-width": f.fw}, side[id[0]].fills),
       meta: makeBone(g), ph: [makeBone(g), makeBone(g), makeBone(g)].slice(0, f.thumb ? 2 : 3),
       pad: mk("circle", {r: f.fw / 2 - 2}, g)
     };
@@ -590,6 +622,8 @@ function layoutHands() {
     const span = Math.abs(tips[ids[3]].x - tips[ids[0]].x);
     side[s].palm.setAttribute("cx", c); side[s].palm.setAttribute("cy", ky + 40);
     side[s].palm.setAttribute("rx", span / 2 + 30); side[s].palm.setAttribute("ry", 64);
+    side[s].palmE.setAttribute("cx", c); side[s].palmE.setAttribute("cy", ky + 40); side[s].palmE.setAttribute("rx", span / 2 + 33); side[s].palmE.setAttribute("ry", 67);
+    side[s].wristE.setAttribute("x", c - 49); side[s].wristE.setAttribute("y", side[s].by); side[s].wristE.setAttribute("width", 98); side[s].wristE.setAttribute("height", 320);
     side[s].wrist.setAttribute("x", c - 46); side[s].wrist.setAttribute("y", side[s].by); side[s].wrist.setAttribute("width", 92); side[s].wrist.setAttribute("height", 320);
     side[s].carpals.forEach(e => { e.setAttribute("transform", `translate(${c} ${side[s].by})`); });
     side[s].forearm.forEach(e => { e.setAttribute("transform", `translate(${c} ${side[s].by})`); });
@@ -647,7 +681,7 @@ function handsFrame(now) {
       d = Math.min(f.L * MAX_K, Math.max(f.L * MIN_K, d));            // длина кости не растягивается
       if (isA && now < tapUntil) d *= 0.94;                            // «нажатие»
       const tipX = K.x + ux * d, tipY = K.y + uy * d;
-      const col = isA ? f.color : "var(--bone)", op = isA ? 0.95 : 0.62;
+      const col = isA ? f.color : "var(--bone)", op = isA ? 1 : 0.8;
       const ratios = f.thumb ? [0.56, 1] : [0.46, 0.76, 1], end = d - 6;
       let px = K.x, py = K.y, prev = 0;
       h.ph.forEach((bn, i) => {
@@ -657,8 +691,11 @@ function handsFrame(now) {
       });
       setBone(h.meta, P.x, P.y, K.x, K.y, f.bw + 0.5, f.br + 0.5, col, isA ? 0.8 : 0.5);
       h.flesh.setAttribute("x1", K.x - s.ox); h.flesh.setAttribute("y1", K.y - s.oy); h.flesh.setAttribute("x2", tipX - s.ox); h.flesh.setAttribute("y2", tipY - s.oy);
-      h.flesh.style.stroke = isA ? f.color : "var(--tissue)"; h.flesh.setAttribute("stroke-opacity", isA ? ".4" : "1");
-      h.pad.setAttribute("cx", tipX); h.pad.setAttribute("cy", tipY); h.pad.style.fill = isA ? f.color : "var(--tissue)"; h.pad.setAttribute("fill-opacity", isA ? ".5" : "1");
+      for (const ln of [h.medge, h.mflesh]) { ln.setAttribute("x1", K.x - s.ox); ln.setAttribute("y1", K.y - s.oy); ln.setAttribute("x2", P.x - s.ox); ln.setAttribute("y2", P.y - s.oy); }
+      h.mflesh.style.stroke = "var(--tissue)";
+      for (const [k, v] of [["x1", K.x - s.ox], ["y1", K.y - s.oy], ["x2", tipX - s.ox], ["y2", tipY - s.oy]]) h.edge.setAttribute(k, v);
+      h.flesh.style.stroke = isA ? "color-mix(in srgb, " + f.color + " 38%, var(--tissue))" : "var(--tissue)";
+      h.pad.setAttribute("cx", tipX); h.pad.setAttribute("cy", tipY); h.pad.style.fill = f.color; h.pad.setAttribute("fill-opacity", isA ? ".45" : "0");
     }
   }
   requestAnimationFrame(handsFrame);

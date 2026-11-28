@@ -27,7 +27,8 @@
       "index.html",
       "styles.css",
       "renderer.js",
-      "package.json"
+      "package.json",
+      "build/icon.png"
     ],
     "win": {
       "target": [
